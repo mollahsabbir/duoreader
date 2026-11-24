@@ -1,0 +1,35 @@
+# Private tooling, keys and local state
+/.local/
+local.properties
+signing.properties
+.env
+.env.*
+*.keystore
+*.keystore.*
+*.jks
+*.p12
+*.key
+
+# Generated build and verification output
+/build/
+/dist/
+/artifacts/
+*.apk
+*.aab
+*.apks
+*.idsig
+*.class
+*.dex
+*.log
+*.pid
+*.epub
+__pycache__/
+*.py[cod]
+
+# Editors and OS files
+/.idea/
+/.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.duoreader" android:versionCode="8" android:versionName="0.6.1">
+    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="35" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.hardware.gamepad" android:required="false" />
+    <application android:name=".ReaderApp" android:label="Duo Reader" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true" android:resizeableActivity="true" android:enableOnBackInvokedCallback="false">
+        <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="landscape" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density" android:launchMode="singleTask">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity>
+        <activity android:name=".ControlsActivity" android:exported="false" android:screenOrientation="landscape" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density" android:taskAffinity="io.duoreader.controls" android:excludeFromRecents="true" android:launchMode="singleTask" />
+    </application>
+</manifest>
