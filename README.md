@@ -21,7 +21,8 @@ no launcher dependency.
 
 ## Use
 
-1. Install a release APK, or build `dist/Duo-Reader.apk` below.
+1. Download **Duo-Reader.apk** from [Releases](https://github.com/mollahsabbir/duoreader/releases)
+   under **Assets** and install it, or build it below.
 2. Open **Preferences → Choose Android folder** and select a folder containing
    your EPUBs. Subfolders become collections. No books are bundled.
 3. Hold the Duo like a book, D-pad at the bottom. Tap the smaller page to show
