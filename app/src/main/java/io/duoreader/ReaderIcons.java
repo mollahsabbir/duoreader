@@ -9,6 +9,7 @@ import android.text.style.ImageSpan;
 /** Small native vector marks, also rendered inside Android's text-selection toolbar. */
 public final class ReaderIcons {
   public static String action(String label) {
+    if (label.startsWith("Change highlight color")) return "palette";
     if (label.startsWith("Delete")) return "delete";
     if (label.startsWith("Edit")) return "edit";
     if (label.startsWith("Copy")) return "copy";
@@ -56,7 +57,17 @@ public final class ReaderIcons {
       paint.setStrokeJoin(Paint.Join.ROUND);
       paint.setStrokeCap(Paint.Cap.ROUND);
       Path p = new Path();
-      if (kind.equals("delete")) {
+      if (kind.equals("palette")) {
+        p.moveTo(20, 15);
+        p.cubicTo(23, 8, 17, 2, 11, 3);
+        p.cubicTo(3, 3, 0, 13, 5, 18);
+        p.cubicTo(9, 23, 15, 23, 14, 18);
+        p.cubicTo(13, 14, 17, 15, 20, 15);
+        p.close();
+        canvas.drawPath(p, paint);
+        for (float[] dot : new float[][] {{6, 11}, {9, 7}, {14, 6}, {18, 10}})
+          canvas.drawCircle(dot[0], dot[1], .8f, paint);
+      } else if (kind.equals("delete")) {
         canvas.drawLine(3, 6, 21, 6, paint);
         canvas.drawRoundRect(6, 6, 18, 22, 1, 1, paint);
         canvas.drawRect(9, 2, 15, 6, paint);
