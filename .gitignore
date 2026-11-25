@@ -1,5 +1,7 @@
 # Private tooling, keys and local state
 /.local/
+/AGENTS.md
+/agents.md
 local.properties
 signing.properties
 .env
