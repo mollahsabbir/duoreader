@@ -15,6 +15,7 @@
     <instrumentation android:name="io.duoreader.StorageTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.LibraryManagementTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.ComicTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
+    <instrumentation android:name="io.duoreader.DocumentCheckpoint" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.ResumeProbe" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.LibraryTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.TouchNavigationTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
