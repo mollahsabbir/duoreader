@@ -16,6 +16,7 @@ no launcher dependency.
 - Left/justified/right text, density-matched font sizes, and four internal rotations.
 - TXT/Markdown editing with line numbers, soft wrap, shared keyboard, undo/redo,
   recoverable drafts, and offline Markdown preview on the larger display.
+- CBZ/CBR comics with naturally ordered pages, covers, and bounded scan decoding.
 - Five library themes and customizable collection icons.
 - Synchronized page curls that follow a drag and respond to release speed.
 - Optional matching page sizes, with borders on one pair of sides.
@@ -89,6 +90,11 @@ characters. Drafts autosave after a short typing pause. No PDF, DRM, full publis
 embedded fonts, scripting, or fixed-layout support. Tested on Retroid Pocket
 Duo; other dual-display devices may differ. Reading data stays local and is
 removed by clearing app data or uninstalling; no sync or export is provided.
+
+Comics: ZIP/RAR 4/5, up to 2 GB, 10,000 entries, 64 MB per extracted image,
+and a 32 MB RAR dictionary. Large scans downsample to screen size. Password-protected
+and multipart archives are unsupported; unusually large dictionaries or damaged scans
+show an error. The app never extracts a whole comic at once.
 
 Original code: [MIT](LICENSE). The dictionary and third-party imagery in the
 poster retain their own terms; see [notices](THIRD-PARTY-NOTICES.md).

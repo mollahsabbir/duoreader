@@ -22,9 +22,11 @@ public final class MainActivity extends Activity {
   private final Runnable attachLower = this::attachBottom;
   private final Runnable refresh =
       () -> {
-        applyViewport();
         if (pageHost != null) {
-          View next = app.mode.equals("editing") ? app.editor.primary(this) : null;
+          View next =
+              app.mode.equals("editing")
+                  ? app.editor.primary(this)
+                  : app.mode.equals("comic") ? app.comics.primary(this) : null;
           if (documentPane != next) {
             if (documentPane != null) pageHost.removeView(documentPane);
             documentPane = next;
@@ -32,6 +34,7 @@ public final class MainActivity extends Activity {
           }
           paper.setVisibility(next == null ? View.VISIBLE : View.GONE);
         }
+        applyViewport();
         if (paper != null) paper.appearance();
         if (fallback != null) fallback.refresh();
       };
@@ -83,7 +86,7 @@ public final class MainActivity extends Activity {
   public void applyViewport() {
     if (pageHost == null || pageHost.getWidth() == 0) return;
     int width = -1, height = -1;
-    if (app.matchScreens && app.mode.equals("reading")) {
+    if (app.matchScreens && (app.mode.equals("reading") || app.mode.equals("comic"))) {
       DisplayMetrics own = new DisplayMetrics(), other = new DisplayMetrics();
       getDisplay().getRealMetrics(own);
       for (Display d : ((DisplayManager) getSystemService(DISPLAY_SERVICE)).getDisplays())
@@ -111,15 +114,16 @@ public final class MainActivity extends Activity {
         height = Math.min(pageHost.getHeight(), Math.round(referenceHeight * fit));
       }
     }
-    FrameLayout.LayoutParams p = (FrameLayout.LayoutParams) paper.getLayoutParams();
+    View content = app.mode.equals("comic") && documentPane != null ? documentPane : paper;
+    FrameLayout.LayoutParams p = (FrameLayout.LayoutParams) content.getLayoutParams();
     if (p.width != width || p.height != height) {
       p.width = width;
       p.height = height;
       p.gravity = Gravity.CENTER;
-      paper.setLayoutParams(p);
+      content.setLayoutParams(p);
     }
     pageHost.setBackgroundColor(
-        !app.mode.equals("reading")
+        !(app.mode.equals("reading") || app.mode.equals("comic"))
             ? app.libraryTheme().shell
             : app.matchScreens ? 0xff111514 : app.pageColor());
   }

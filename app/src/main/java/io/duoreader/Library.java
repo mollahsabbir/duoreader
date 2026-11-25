@@ -121,6 +121,16 @@ public final class Library {
 
   public static void metadata(Context c, Entry e) {
     if (e.folder || e.loaded) return;
+    if (DocumentFormat.of(e.name).comic()) {
+      try {
+        e.cover = ComicReader.cover((ReaderApp) c.getApplicationContext(), e, 128);
+        e.hasCover = e.cover != null;
+      } catch (IOException error) {
+        e.error = error.getMessage();
+      }
+      e.loaded = true;
+      return;
+    }
     if (DocumentFormat.of(e.name).editable()) {
       e.loaded = true;
       return;
@@ -167,6 +177,17 @@ public final class Library {
           if (e.folder) p.collections++;
           else p.books++;
         p.label = "IN THIS COLLECTION";
+      } else if (DocumentFormat.of(entry.name).comic()) {
+        File file =
+            EpubCache.resolve(
+                context, entry.uri, entry.modified, entry.size, 2L * 1024 * 1024 * 1024, "comic");
+        try (ComicArchive comic =
+            ComicArchive.open(file, DocumentFormat.of(entry.name), context.getCacheDir())) {
+          p.label = "COMIC · " + comic.names.size() + " PAGES";
+          p.text =
+              "Two consecutive pages across both displays. Use the smaller screen or page buttons"
+                  + " to browse.";
+        }
       } else if (DocumentFormat.of(entry.name).editable()) {
         p.label =
             DocumentFormat.of(entry.name) == DocumentFormat.MARKDOWN

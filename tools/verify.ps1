@@ -42,7 +42,11 @@ Assert-NativeCommand 'Install instrumentation'
 $suites = @(
     @('DeviceTests','verification.json'), @('LibraryTests','library-verification.json'),
     @('TouchNavigationTests','touch-verification.json'), @('RobustnessTests','robustness-verification.json'),
-    @('OrientationProbe','orientation-verification.json'), @('UiBehaviorTests','ui-behavior-verification.json')
+    @('OrientationProbe','orientation-verification.json'), @('UiBehaviorTests','ui-behavior-verification.json'),
+    @('DisplayTests','DisplayTests.json'), @('AlignmentTests','AlignmentTests.json'),
+    @('NoteTests','NoteTests.json'), @('EditorTests','EditorTests.json'),
+    @('StorageTests','StorageTests.json'), @('LibraryManagementTests','LibraryManagementTests.json'),
+    @('ComicTests','ComicTests.json')
 )
 $results = Join-Path $buildDir 'test-results'
 New-Item -ItemType Directory -Force -Path $results | Out-Null

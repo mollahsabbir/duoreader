@@ -229,6 +229,7 @@ public final class LibraryManager {
   private void releaseCurrent(boolean forget) {
     app.save();
     app.editor.clear();
+    app.comics.clear();
     if (app.book != null) {
       try {
         app.book.close();

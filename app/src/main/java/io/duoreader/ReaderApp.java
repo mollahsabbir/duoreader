@@ -38,6 +38,7 @@ public final class ReaderApp extends Application {
   public final DisplayTypography typography = new DisplayTypography(this);
   public final TextEditor editor = new TextEditor(this);
   public final LibraryManager libraryManager = new LibraryManager(this);
+  public final ComicReader comics = new ComicReader(this);
   public final EnglishDictionary dictionary = new EnglishDictionary(this);
   public final BookSearch searchService = new BookSearch();
   public final ThreadPoolExecutor lookups = TaskExecutors.create("reader-lookups", 1);
@@ -414,6 +415,10 @@ public final class ReaderApp extends Application {
       openTask = editor.open(opened, generation);
       return;
     }
+    if (DocumentFormat.of(opened.name).comic()) {
+      openTask = comics.open(opened, generation);
+      return;
+    }
     openTask =
         worker.submit(
             () -> {
@@ -460,6 +465,7 @@ public final class ReaderApp extends Application {
                         } catch (Exception ignored) {
                         }
                       editor.clear();
+                      comics.clear();
                       book = epub;
                       current = opened;
                       selected = opened;
@@ -686,6 +692,7 @@ public final class ReaderApp extends Application {
 
   public void library() {
     turns.cancel();
+    comics.suspend();
     resumePending = false;
     restoring = false;
     cancelOpen();
@@ -724,6 +731,7 @@ public final class ReaderApp extends Application {
 
   public void close() {
     turns.cancel();
+    comics.suspend();
     save();
     libraryRepository.cancelRequests();
     closing = true;
@@ -744,6 +752,13 @@ public final class ReaderApp extends Application {
   }
 
   public void resume() {
+    if (comics.active()) {
+      mode = "comic";
+      save();
+      changed();
+      comics.resume();
+      return;
+    }
     if (editor.active()) {
       mode = "editing";
       save();
@@ -773,6 +788,7 @@ public final class ReaderApp extends Application {
   }
 
   public int progressPercent(Location location) {
+    if (comics.active()) return comics.progress();
     if (book == null) return 0;
     float fraction = 0;
     try {
@@ -799,6 +815,7 @@ public final class ReaderApp extends Application {
     }
     android.content.SharedPreferences.Editor e =
         prefs.edit().putBoolean("reading", !mode.equals("library"));
+    if (comics.active()) e.putInt(bookKey() + "comicPage", comics.index());
     if (current != null)
       e.putString(bookKey() + "uri", current.uri)
           .putString("lastUri", current.uri)
@@ -837,6 +854,7 @@ public final class ReaderApp extends Application {
             }
           });
       libraryRepository.trim();
+      comics.trim();
       if (top != null && top.paper != null) top.paper.releaseTurnBuffers();
       if (controls != null && controls.paper != null) controls.paper.releaseTurnBuffers();
     }

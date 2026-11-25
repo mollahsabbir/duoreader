@@ -36,6 +36,6 @@ public enum DocumentFormat {
 
   public static boolean supported(String name) {
     DocumentFormat format = of(name);
-    return format == EPUB || format.editable();
+    return format == EPUB || format.editable() || format.comic();
   }
 }

@@ -224,6 +224,7 @@ public final class ReaderUi {
       root.setBackgroundColor(shell());
       if (app.mode.equals("reading") && app.book != null) buildReader();
       else if (app.mode.equals("editing")) app.editor.buildControls(this);
+      else if (app.mode.equals("comic")) app.comics.buildControls(this);
       else buildLibrary();
     }
     if (paper != null) {
@@ -1897,6 +1898,7 @@ public final class ReaderUi {
 
   public boolean handleKey(KeyEvent event) {
     if (app.mode.equals("editing") && dialog == null) return app.editor.handle(event);
+    if (app.mode.equals("comic") && dialog == null) return app.comics.handle(event);
     int key = event.getKeyCode();
     if (dialog != null && dialog.isShowing()) {
       // Gamepad events may be routed to the upper activity; deliver to the lower dialog.
@@ -2047,7 +2049,7 @@ public final class ReaderUi {
       if (paper != null) paper.requestFocus();
       return;
     }
-    if (app.mode.equals("reading") || app.mode.equals("editing")) {
+    if (app.mode.equals("reading") || app.mode.equals("editing") || app.mode.equals("comic")) {
       app.library();
       return;
     }

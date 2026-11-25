@@ -58,7 +58,7 @@ public final class BookStateStore {
     if (oldUri.equals(newUri)) return;
     String oldKey = key(oldUri), newKey = key(newUri);
     SharedPreferences.Editor edit = preferences.edit().putString(newKey + "uri", newUri);
-    for (String field : new String[] {"chapter", "offset", "percent"})
+    for (String field : new String[] {"chapter", "offset", "percent", "comicPage"})
       if (preferences.contains(oldKey + field))
         edit.putInt(newKey + field, preferences.getInt(oldKey + field, 0));
     for (String field : new String[] {"marks", "title"})

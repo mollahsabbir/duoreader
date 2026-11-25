@@ -85,6 +85,7 @@ public final class TextEditor {
                   if (generation != app.openGeneration || app.closing) return;
                   app.save();
                   clear();
+                  app.comics.clear();
                   if (app.book != null) {
                     try {
                       app.book.close();
