@@ -1116,7 +1116,8 @@ public final class DeviceTests extends Instrumentation {
     child.mkdirs();
     File epub = new File(child, "Example.epub"),
         second = new File(root, "Second.epub"),
-        ignore = new File(root, "Ignore.txt");
+        ignore = new File(root, "Ignore.pdf");
+    new File(root, "Ignore.txt").delete();
     try (InputStream in =
             new FileInputStream(Library.cached(app, sample.uri, sample.modified, sample.size));
         OutputStream out = new FileOutputStream(epub)) {
