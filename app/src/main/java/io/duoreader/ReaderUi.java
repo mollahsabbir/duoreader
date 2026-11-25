@@ -1081,7 +1081,8 @@ public final class ReaderUi {
             "Button guide",
             "Close app",
             "Manage selected item",
-            "Create collection or document"
+            "Create collection or document",
+            "Import files…"
           },
           i -> {
             switch (i) {
@@ -1111,6 +1112,9 @@ public final class ReaderUi {
                 break;
               case 8:
                 app.libraryManager.createMenu();
+                break;
+              case 9:
+                if (app.bottom != null) app.bottom.importFiles();
             }
           });
       return;

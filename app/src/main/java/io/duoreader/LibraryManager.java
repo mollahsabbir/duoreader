@@ -1,6 +1,7 @@
 package io.duoreader;
 
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.widget.*;
 import java.io.*;
 import java.util.*;
@@ -27,11 +28,15 @@ public final class LibraryManager {
   public void createMenu() {
     ui().menu(
             "Create in " + app.folderLabel(),
-            new String[] {"New collection", "New TXT file", "New Markdown file"},
+            new String[] {"Import files…", "New collection", "New TXT file", "New Markdown file"},
             index -> {
+              if (index == 0) {
+                if (app.bottom != null) app.bottom.importFiles();
+                return;
+              }
               String parent = app.folder;
               ui().keyboard(
-                      index == 0 ? "Collection name" : "Document name",
+                      index == 1 ? "Collection name" : "Document name",
                       "",
                       "Create",
                       name ->
@@ -43,10 +48,10 @@ public final class LibraryManager {
                                         .create(
                                             parent,
                                             name,
-                                            index == 2
+                                            index == 3
                                                 ? DocumentFormat.MARKDOWN
                                                 : DocumentFormat.TEXT,
-                                            index == 0);
+                                            index == 1);
                                 return () -> {
                                   selectOnReload(parent, created);
                                 };
@@ -106,6 +111,32 @@ public final class LibraryManager {
                                 });
                         }));
     ui().showDialog(entry.name, body);
+  }
+
+  void importFiles(String root, String parent, ArrayList<Uri> sources) {
+    if (sources.isEmpty()) return;
+    perform(
+        "Import",
+        () -> {
+          LibraryImporter.Result result =
+              LibraryImporter.copy(
+                  app,
+                  root,
+                  parent,
+                  sources,
+                  text ->
+                      app.main.post(
+                          () -> {
+                            if (!app.closing) {
+                              app.status = text;
+                              app.changed();
+                            }
+                          }));
+          return () -> {
+            if (result.last != null) selectOnReload(parent, result.last);
+            if (!app.closing && ui() != null) ui().message("Import complete", result.summary());
+          };
+        });
   }
 
   private void destinations(

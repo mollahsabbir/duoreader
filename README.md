@@ -38,8 +38,11 @@ no launcher dependency.
 Rotation and matching page sizes are in Preferences. Separate font sizes require
 **Menu → Advanced display settings → Allow different font sizes**.
 In the editor, **Save** writes the original file; unsaved edits are kept as local drafts.
-Use **+** to create items and **Manage** for the selected item. Existing folders
-may need to be chosen again to grant write access. Providers that cannot move
+Use **+** to create items and **Manage** for the selected item.
+Bring files from elsewhere with **+ → Import files**. Select up to 64 EPUB,
+TXT, Markdown, CBZ, or CBR files in Android’s picker. Imports go into the current
+collection; originals stay intact and duplicate filenames get a number.
+Existing folders may need to be chosen again to grant write access. Providers that cannot move
 whole collections can still move individual files.
 
 | Reading control | Default action |

@@ -145,6 +145,11 @@ public final class ReaderApp extends Application {
     typography.refresh();
     worker.execute(
         () -> {
+          try {
+            LibraryImporter.recover(this);
+          } catch (Exception error) {
+            Log.w("DuoReader", "Interrupted import cleanup pending", error);
+          }
           String defaultRoot = Uri.fromFile(Library.appDirectory(this)).toString();
           main.post(
               () -> {

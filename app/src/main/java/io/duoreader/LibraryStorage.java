@@ -239,24 +239,7 @@ final class LibraryStorage {
     Library.Entry copied = createExact(destination, source.name);
     boolean verified = false;
     try {
-      byte[] expected;
-      try (InputStream input = TextDocument.input(context, source.uri);
-          OutputStream output = output(copied.uri)) {
-        MessageDigest hash = MessageDigest.getInstance("SHA-256");
-        byte[] buffer = new byte[65536];
-        long total = 0;
-        int count;
-        while ((count = input.read(buffer)) != -1) {
-          if (Thread.currentThread().isInterrupted())
-            throw new InterruptedIOException("Move cancelled; original retained");
-          if ((total += count) > MAX_COPY_BYTES)
-            throw new IOException("Move files larger than 2 GB using Android’s file manager");
-          hash.update(buffer, 0, count);
-          output.write(buffer, 0, count);
-        }
-        output.flush();
-        expected = hash.digest();
-      }
+      byte[] expected = copyBytes(source.uri, copied.uri, MAX_COPY_BYTES);
       if (!Arrays.equals(expected, hash(copied.uri)))
         throw new IOException("Copy verification failed; original retained");
       if (!Arrays.equals(expected, hash(source.uri)))
@@ -289,6 +272,100 @@ final class LibraryStorage {
     return new Library.Entry(uri.toString(), name, false);
   }
 
+  interface PendingCopy {
+    void created(Library.Entry entry) throws Exception;
+  }
+
+  Library.Entry importFile(
+      String parent, String source, String displayName, long declaredSize, PendingCopy pending)
+      throws Exception {
+    String requested = name(displayName);
+    DocumentFormat format = DocumentFormat.of(requested);
+    if (format == DocumentFormat.UNKNOWN)
+      throw new IOException("Unsupported file type: " + requested);
+    long limit =
+        format.editable()
+            ? TextDocument.MAX_BYTES
+            : format.comic() ? MAX_COPY_BYTES : EpubCache.MAX_BYTES;
+    if (declaredSize > limit)
+      throw new IOException(requested + " exceeds " + limit / 1024 / 1024 + " MB");
+    require(parent, DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE, "importing files");
+    String available = availableName(parent, requested);
+    Library.Entry copied = createExact(parent, available);
+    boolean verified = false;
+    try {
+      pending.created(copied);
+      byte[] expected = copyBytes(source, copied.uri, limit);
+      if (!Arrays.equals(expected, hash(copied.uri, limit)))
+        throw new IOException("Import verification failed");
+      verified = true;
+      return copied;
+    } finally {
+      if (!verified) {
+        try {
+          delete(parent, copied);
+        } catch (Exception ignored) {
+        }
+      }
+    }
+  }
+
+  private String availableName(String parent, String requested) throws Exception {
+    HashSet<String> names = new HashSet<>();
+    if (local(parent)) {
+      String[] children = checked(parent, true).list();
+      if (children == null) throw new IOException("Import destination is unavailable");
+      for (String child : children) names.add(child.toLowerCase(Locale.ROOT));
+    } else {
+      Uri folder = document(parent);
+      Uri children =
+          DocumentsContract.buildChildDocumentsUriUsingTree(
+              folder, DocumentsContract.getDocumentId(folder));
+      try (Cursor cursor =
+          context
+              .getContentResolver()
+              .query(
+                  children,
+                  new String[] {DocumentsContract.Document.COLUMN_DISPLAY_NAME},
+                  null,
+                  null,
+                  null)) {
+        if (cursor == null) throw new IOException("Import destination is unavailable");
+        while (cursor.moveToNext()) {
+          String child = cursor.getString(0);
+          if (child != null) names.add(child.toLowerCase(Locale.ROOT));
+        }
+      }
+    }
+    int dot = requested.lastIndexOf('.');
+    String base = requested.substring(0, dot), extension = requested.substring(dot);
+    for (int suffix = 0; suffix < 10000; suffix++) {
+      String candidate = suffix == 0 ? requested : base + " (" + suffix + ")" + extension;
+      if (!names.contains(candidate.toLowerCase(Locale.ROOT))) return candidate;
+    }
+    throw new IOException("Too many copies with the same filename");
+  }
+
+  private byte[] copyBytes(String source, String destination, long limit) throws Exception {
+    try (InputStream input = TextDocument.input(context, source);
+        OutputStream output = output(destination)) {
+      MessageDigest hash = MessageDigest.getInstance("SHA-256");
+      byte[] buffer = new byte[65536];
+      long total = 0;
+      int count;
+      while ((count = input.read(buffer)) != -1) {
+        if (Thread.currentThread().isInterrupted())
+          throw new InterruptedIOException("Copy cancelled; original retained");
+        if ((total += count) > limit)
+          throw new IOException("File exceeds " + limit / 1024 / 1024 + " MB");
+        hash.update(buffer, 0, count);
+        output.write(buffer, 0, count);
+      }
+      output.flush();
+      return hash.digest();
+    }
+  }
+
   private OutputStream output(String uri) throws IOException {
     if (local(uri)) return new FileOutputStream(checked(uri, false));
     OutputStream output = context.getContentResolver().openOutputStream(document(uri), "rwt");
@@ -297,6 +374,10 @@ final class LibraryStorage {
   }
 
   private byte[] hash(String uri) throws Exception {
+    return hash(uri, MAX_COPY_BYTES);
+  }
+
+  private byte[] hash(String uri, long limit) throws Exception {
     MessageDigest hash = MessageDigest.getInstance("SHA-256");
     long total = 0;
     try (InputStream input = TextDocument.input(context, uri)) {
@@ -305,8 +386,7 @@ final class LibraryStorage {
       while ((count = input.read(buffer)) != -1) {
         if (Thread.currentThread().isInterrupted())
           throw new InterruptedIOException("Verification cancelled");
-        if ((total += count) > MAX_COPY_BYTES)
-          throw new IOException("Destination exceeds the move limit");
+        if ((total += count) > limit) throw new IOException("Destination exceeds the move limit");
         hash.update(buffer, 0, count);
       }
     }
