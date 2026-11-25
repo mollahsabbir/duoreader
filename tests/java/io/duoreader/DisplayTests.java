@@ -6,7 +6,51 @@ import android.view.*;
 public final class DisplayTests extends FeatureTest {
   void exercise() throws Exception {
     int original = app.rotation;
+    boolean separate = app.allowDifferentFontSizes;
+    int upperSize = app.upperFontSize, lowerSize = app.lowerFontSize;
     try {
+      ui(
+          () -> {
+            app.allowDifferentFontSizes = false;
+            app.appearance();
+          });
+      float upper = app.textPaint(false).getTextSize(), lower = app.textPaint(true).getTextSize();
+      check(
+          "Default text has equal physical height",
+          Math.abs(upper / app.typography.ppi(false) - lower / app.typography.ppi(true)) < .0001f);
+      check(
+          "Duo upper panel receives larger pixel text "
+              + upper
+              + "/"
+              + lower
+              + " ppi "
+              + app.typography.ppi(false)
+              + "/"
+              + app.typography.ppi(true),
+          upper > lower * 1.1f);
+      ui(
+          () -> {
+            app.upperFontSize = 25;
+            app.lowerFontSize = 14;
+            app.appearance();
+          });
+      check(
+          "Separate sizes have no effect until enabled",
+          app.textPaint(false).getTextSize() == upper);
+      ui(
+          () -> {
+            app.allowDifferentFontSizes = true;
+            app.appearance();
+          });
+      check(
+          "Enabled separate sizes affect both pages",
+          app.textPaint(false).getTextSize() / app.typography.ppi(false)
+              > app.textPaint(true).getTextSize() / app.typography.ppi(true) * 1.7f);
+      check(
+          "Separate sizes and gate persist",
+          app.prefs.getBoolean("allowDifferentFontSizes", false)
+              && app.prefs.getInt("upperFontSize", 0) == 25
+              && app.prefs.getInt("lowerFontSize", 0) == 14);
       for (int angle : new int[] {0, 90, 180, 270}) {
         ui(
             () -> {
@@ -48,6 +92,9 @@ public final class DisplayTests extends FeatureTest {
       ui(
           () -> {
             app.rotation = original;
+            app.allowDifferentFontSizes = separate;
+            app.upperFontSize = upperSize;
+            app.lowerFontSize = lowerSize;
             app.appearance();
           });
     }

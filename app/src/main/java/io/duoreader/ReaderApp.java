@@ -35,6 +35,7 @@ public final class ReaderApp extends Application {
   public final SpreadTurn turns = new SpreadTurn(this);
   public final PairedTasks pairedTasks = new PairedTasks(this);
   public final Paginator paginator = new Paginator(this);
+  public final DisplayTypography typography = new DisplayTypography(this);
   public final EnglishDictionary dictionary = new EnglishDictionary(this);
   public final BookSearch searchService = new BookSearch();
   public final ThreadPoolExecutor lookups = TaskExecutors.create("reader-lookups", 1);
@@ -63,6 +64,8 @@ public final class ReaderApp extends Application {
   public float spacing = 1.4f, brightness = -1f;
   public boolean animate = true, awake = true, matchScreens = false;
   public int rotation = 90;
+  public boolean allowDifferentFontSizes;
+  public int upperFontSize = 18, lowerFontSize = 18;
   public JSONArray marks = new JSONArray();
   public String searchTerm = "";
   public static final String[] THEMES = {"Black", "16Bit", "GC", "Ice Blue", "Clear Purple"};
@@ -121,6 +124,9 @@ public final class ReaderApp extends Application {
     paper = prefs.getInt("paper", 1);
     font = prefs.getInt("font", 0);
     fontSize = prefs.getInt("size", 18);
+    allowDifferentFontSizes = prefs.getBoolean("allowDifferentFontSizes", false);
+    upperFontSize = prefs.getInt("upperFontSize", fontSize);
+    lowerFontSize = prefs.getInt("lowerFontSize", fontSize);
     margin = prefs.getInt("margin", 24);
     spacing = prefs.getFloat("spacing", 1.4f);
     animate = true;
@@ -131,6 +137,7 @@ public final class ReaderApp extends Application {
     restoring = prefs.getBoolean("reading", false);
     resumePending = restoring;
     ReaderSettings.sanitize(this);
+    typography.refresh();
     worker.execute(
         () -> {
           String defaultRoot = Uri.fromFile(Library.appDirectory(this)).toString();
@@ -525,15 +532,23 @@ public final class ReaderApp extends Application {
   }
 
   public TextPaint textPaint() {
+    return textPaint(false);
+  }
+
+  public TextPaint textPaint(boolean lower) {
     TextPaint p = new TextPaint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     p.setTypeface(typeface());
-    p.setTextSize(fontSize * getResources().getDisplayMetrics().scaledDensity);
+    p.setTextSize(typography.pixels(lower));
     p.setColor(ink());
     return p;
   }
 
   public Page page(Location location, int width, int height) throws IOException {
-    return paginator.page(location, width, height);
+    return page(location, width, height, false);
+  }
+
+  public Page page(Location location, int width, int height, boolean lower) throws IOException {
+    return paginator.page(location, width, height, lower);
   }
 
   public boolean end(Location loc) {
@@ -555,7 +570,7 @@ public final class ReaderApp extends Application {
       topPage = page(position, topWidth, topHeight);
       position = topPage.start;
       paginator.rememberSpread(position);
-      bottomPage = end(topPage.next) ? null : page(topPage.next, bottomWidth, bottomHeight);
+      bottomPage = end(topPage.next) ? null : page(topPage.next, bottomWidth, bottomHeight, true);
     } catch (Exception e) {
       status = "Page error: " + e.getMessage();
       Log.e("DuoReader", "Pagination", e);
@@ -800,6 +815,7 @@ public final class ReaderApp extends Application {
 
   public void appearance() {
     ReaderSettings.sanitize(this);
+    typography.refresh();
     turns.cancel();
     prefs
         .edit()
@@ -807,6 +823,9 @@ public final class ReaderApp extends Application {
         .putInt("paper", paper)
         .putInt("font", font)
         .putInt("size", fontSize)
+        .putBoolean("allowDifferentFontSizes", allowDifferentFontSizes)
+        .putInt("upperFontSize", upperFontSize)
+        .putInt("lowerFontSize", lowerFontSize)
         .putInt("margin", margin)
         .putFloat("spacing", spacing)
         .putBoolean("animate", animate)

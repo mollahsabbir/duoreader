@@ -9,6 +9,8 @@ public final class ReaderSettings {
     app.paper = clamp(app.paper, 0, ReaderApp.PAPER_NAMES.length - 1);
     app.font = clamp(app.font, 0, ReaderApp.FONTS.length - 1);
     app.fontSize = clamp(app.fontSize, 12, 32);
+    app.upperFontSize = clamp(app.upperFontSize, 12, 32);
+    app.lowerFontSize = clamp(app.lowerFontSize, 12, 32);
     app.margin = clamp(app.margin, 8, 64);
     app.rotation = ReadingOrientation.normalize(app.rotation);
     app.spacing =

@@ -116,7 +116,7 @@ public final class PaperView extends TextView {
         setText(page == null ? "" : page.text, BufferType.SPANNABLE);
       }
       setTypeface(app.typeface());
-      setTextSize(TypedValue.COMPLEX_UNIT_PX, app.textPaint().getTextSize());
+      setTextSize(TypedValue.COMPLEX_UNIT_PX, app.textPaint(true).getTextSize());
       setTextColor(app.ink());
       setHighlightColor(0x668ba6cf);
       setLineSpacing(0, app.spacing);

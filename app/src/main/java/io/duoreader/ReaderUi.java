@@ -504,8 +504,7 @@ public final class ReaderUi {
         readerButton(
             "A−",
             () -> {
-              app.fontSize = Math.max(12, app.fontSize - 1);
-              app.appearance();
+              fontStep(-1);
               scheduleHide();
             }));
     sizeQuick = readerButton("", () -> {});
@@ -516,8 +515,7 @@ public final class ReaderUi {
         readerButton(
             "A+",
             () -> {
-              app.fontSize = Math.min(32, app.fontSize + 1);
-              app.appearance();
+              fontStep(1);
               scheduleHide();
             }));
     appearanceOverlay.addView(fonts);
@@ -1035,6 +1033,7 @@ public final class ReaderUi {
     }
     LinearLayout readingMenu = column();
     rotationControls(readingMenu);
+    option(readingMenu, "Advanced display settings", this::advancedDisplay);
     String[] readingChoices = {
       "Bookmarks & notes  ·  " + app.marks.length(),
       "Select passage with buttons",
@@ -1164,6 +1163,10 @@ public final class ReaderUi {
     int size = Math.max(12, Math.min(32, app.fontSize + step));
     if (size != app.fontSize) {
       app.fontSize = size;
+      if (app.allowDifferentFontSizes) {
+        app.upperFontSize = Math.max(12, Math.min(32, app.upperFontSize + step));
+        app.lowerFontSize = Math.max(12, Math.min(32, app.lowerFontSize + step));
+      }
       app.appearance();
     }
     toast("Font size " + app.fontSize);
@@ -1570,6 +1573,7 @@ public final class ReaderUi {
         });
     option(body, "Library theme  ·  " + ReaderApp.THEMES[app.theme], this::libraryThemes);
     rotationControls(body);
+    option(body, "Advanced display settings", this::advancedDisplay);
     option(
         body,
         "Match larger screen to smaller  ·  " + (app.matchScreens ? "On" : "Off"),
@@ -1604,6 +1608,56 @@ public final class ReaderUi {
                 }));
     option(body, "Button guide", this::guide);
     showDialog("Preferences", body);
+  }
+
+  void advancedDisplay() {
+    LinearLayout body = column();
+    TextView explanation =
+        text(
+            "Text sizes automatically compensate for each screen’s pixel density. "
+                + "Enable separate sizes only to give the two pages different text sizes.",
+            14,
+            muted());
+    body.addView(explanation);
+    option(
+        body,
+        "Allow different font sizes  ·  " + (app.allowDifferentFontSizes ? "On" : "Off"),
+        () -> {
+          app.allowDifferentFontSizes = !app.allowDifferentFontSizes;
+          app.appearance();
+          advancedDisplay();
+        });
+    for (boolean lower : new boolean[] {false, true}) {
+      LinearLayout sizes = row();
+      TextView label =
+          text(
+              (lower ? "Smaller" : "Larger")
+                  + " screen  ·  "
+                  + (lower ? app.lowerFontSize : app.upperFontSize),
+              14,
+              ink());
+      sizes.addView(label, new LinearLayout.LayoutParams(0, -2, 2));
+      for (int delta : new int[] {-1, 1}) {
+        Button control =
+            button(
+                delta < 0 ? "A−" : "A+",
+                () -> {
+                  if (lower) app.lowerFontSize += delta;
+                  else app.upperFontSize += delta;
+                  app.appearance();
+                  advancedDisplay();
+                });
+        control.setContentDescription(
+            (lower ? "Smaller" : "Larger")
+                + " screen font "
+                + (delta < 0 ? "decrease" : "increase"));
+        control.setEnabled(app.allowDifferentFontSizes);
+        control.setAlpha(app.allowDifferentFontSizes ? 1f : .4f);
+        addWeighted(sizes, control);
+      }
+      body.addView(sizes);
+    }
+    showDialog("Advanced display", body);
   }
 
   void chooseFolder() {

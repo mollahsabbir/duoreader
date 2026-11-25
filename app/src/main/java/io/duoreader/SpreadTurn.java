@@ -28,7 +28,7 @@ public final class SpreadTurn {
     try {
       ReaderApp.Page first = app.page(target, app.topWidth, app.topHeight);
       ReaderApp.Page second =
-          app.end(first.next) ? null : app.page(first.next, app.bottomWidth, app.bottomHeight);
+          app.end(first.next) ? null : app.page(first.next, app.bottomWidth, app.bottomHeight, true);
       upper = app.top == null ? null : app.top.paper;
       lower = app.controls == null ? null : app.controls.paper;
       direction = dir;
