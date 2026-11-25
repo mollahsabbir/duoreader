@@ -3,7 +3,8 @@ param(
     [string]$JavaHome = $env:JAVA_HOME,
     [switch]$Run,
     [string]$Serial,
-    [string]$Adb
+    [string]$Adb,
+    [string[]]$Suite
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -48,6 +49,11 @@ $suites = @(
     @('StorageTests','StorageTests.json'), @('LibraryManagementTests','LibraryManagementTests.json'),
     @('ComicTests','ComicTests.json')
 )
+if ($Suite) {
+    $known = @($suites | ForEach-Object { $_[0] })
+    foreach ($name in $Suite) { if ($name -notin $known) { throw "Unknown suite: $name. Available: $($known -join ', ')" } }
+    $suites = @($suites | Where-Object { $_[0] -in $Suite })
+}
 $results = Join-Path $buildDir 'test-results'
 New-Item -ItemType Directory -Force -Path $results | Out-Null
 foreach ($suite in $suites) {

@@ -79,6 +79,18 @@ public final class OrientationProbe extends Instrumentation {
               ActivityOptions.makeBasic().setLaunchDisplayId(2).toBundle());
       launch();
       until(
+          () -> app.ready && app.top != null && app.bottom != null && !app.busy && !app.restoring,
+          "reader startup");
+      File fixture = TestBooks.create(getTargetContext());
+      ui(
+          () -> {
+            app.rotation = 90;
+            app.appearance();
+            app.open(
+                new Library.Entry(
+                    android.net.Uri.fromFile(fixture).toString(), fixture.getName(), false));
+          });
+      until(
           () ->
               app.top != null
                   && app.bottom != null
