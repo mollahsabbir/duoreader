@@ -67,7 +67,9 @@ The build fetches checksum-pinned parser dependencies into `.local/dependencies`
 
 `-Debug` builds a debuggable APK in `build/`. Device tests require an explicit
 `-Run -Serial SERIAL`; use a test profile because they exercise saved settings.
-Tests generate their own EPUB fixtures.
+Tests generate their own EPUB, text, and comic fixtures. For force-stop recovery
+checks after installing the debug/test APKs, run `python tools/test-documents.py
+--serial SERIAL --adb PATH`.
 
 Keep `.local/duoreader-debug.keystore` private and backed up. A different signing
 key cannot update an existing installation. Build outputs, local tools, keys
