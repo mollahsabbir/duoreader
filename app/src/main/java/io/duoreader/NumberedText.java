@@ -102,6 +102,20 @@ public final class NumberedText extends EditText {
     invalidate();
   }
 
+  void limitLines(int maximum, Runnable rejected) {
+    InputFilter[] filters = java.util.Arrays.copyOf(getFilters(), getFilters().length + 1);
+    filters[filters.length - 1] =
+        (source, start, end, target, from, to) -> {
+          int count = lines.count();
+          for (int i = start; i < end; i++) if (source.charAt(i) == '\n') count++;
+          for (int i = from; i < to; i++) if (target.charAt(i) == '\n') count--;
+          if (count <= maximum) return null;
+          rejected.run();
+          return "";
+        };
+    setFilters(filters);
+  }
+
   public void insert(String text) {
     int a = Math.max(0, getSelectionStart()), b = Math.max(a, getSelectionEnd());
     getText().replace(a, b, text);

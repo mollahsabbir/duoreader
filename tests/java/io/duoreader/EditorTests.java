@@ -65,6 +65,15 @@ public final class EditorTests extends FeatureTest {
         Arrays.equals(
             TextDocument.read(app, loaded.uri),
             "Edited\r\nSecond\r\n".getBytes(StandardCharsets.UTF_8)));
+    File sidecar = new File(plain.getPath() + ".bak");
+    try (OutputStream output = new FileOutputStream(sidecar)) {
+      output.write("User backup".getBytes(StandardCharsets.UTF_8));
+    }
+    loaded.save(app, "Another edit\n");
+    check(
+        "User-owned backup files are preserved",
+        new String(TextDocument.read(app, Uri.fromFile(sidecar).toString()), StandardCharsets.UTF_8)
+            .equals("User backup"));
     TextDocument.writeAtomic(plain, "External change".getBytes(StandardCharsets.UTF_8));
     boolean conflict = false;
     try {
@@ -75,6 +84,15 @@ public final class EditorTests extends FeatureTest {
     check(
         "External changes are protected",
         conflict && TextDocument.load(app, loaded.uri).text.equals("External change"));
+    TextDocument recovered = TextDocument.load(app, loaded.uri);
+    recovered.recoverAgainst(loaded.fingerprint());
+    boolean recoveredConflict = false;
+    try {
+      recovered.save(app, "Recovered draft");
+    } catch (IOException expected) {
+      recoveredConflict = true;
+    }
+    check("Recovered drafts cannot overwrite externally changed originals", recoveredConflict);
     byte[] utf16 = "Hi\r\n😀".getBytes(StandardCharsets.UTF_16LE), bom = new byte[utf16.length + 2];
     bom[0] = (byte) 0xff;
     bom[1] = (byte) 0xfe;
@@ -93,6 +111,34 @@ public final class EditorTests extends FeatureTest {
         rendered.toString().contains("Heading")
             && rendered.toString().contains("<script>")
             && rendered.getSpans(0, rendered.length(), StyleSpan.class).length >= 2);
+    Spanned nested =
+        MarkdownPreview.render(new String(new char[2000]).replace('\0', '>') + " deeply nested");
+    check(
+        "Pathological Markdown nesting is bounded",
+        nested.toString().contains("deeply nested")
+            && nested.getSpans(0, nested.length(), android.text.style.QuoteSpan.class).length
+                <= 128);
+    File manyLines = new File(directory, "TooManyLines.txt");
+    TextDocument.writeAtomic(
+        manyLines,
+        new String(new char[TextDocument.MAX_LINES])
+            .replace('\0', '\n')
+            .getBytes(StandardCharsets.UTF_8));
+    boolean lineLimit = false;
+    try {
+      TextDocument.load(app, Uri.fromFile(manyLines).toString());
+    } catch (IOException expected) {
+      lineLimit = true;
+    }
+    check("Pathological text line counts are rejected before layout", lineLimit);
+    app.editor.awaitWrites();
+    for (File fixture : new File[] {markdown, plain}) {
+      new android.util.AtomicFile(
+              new File(
+                  app.getFilesDir(),
+                  "draft-" + Library.id(Uri.fromFile(fixture).toString()) + ".json"))
+          .delete();
+    }
     int rotation = app.rotation;
     Library.Entry original = app.current;
     ReaderApp.Location position = app.position;

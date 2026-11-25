@@ -46,6 +46,10 @@ public final class TextEditor {
     return source == null ? cursor : Math.max(0, source.getSelectionStart());
   }
 
+  String content() {
+    return source == null ? text : source.getText().toString();
+  }
+
   void awaitWrites() throws Exception {
     io.submit(() -> {}).get(15, TimeUnit.SECONDS);
   }
@@ -63,9 +67,10 @@ public final class TextEditor {
             int caret = app.prefs.getInt(app.key(entry.uri) + "offset", 0);
             boolean recovered = false;
             File draft = draft(entry.uri);
-            if (draft.isFile() && draft.length() <= TextDocument.MAX_BYTES * 6L) {
+            if ((draft.isFile() || new File(draft.getPath() + ".bak").isFile())
+                && draft.length() <= TextDocument.MAX_BYTES * 6L) {
               JSONObject json;
-              try (InputStream input = new FileInputStream(draft);
+              try (InputStream input = new android.util.AtomicFile(draft).openRead();
                   ByteArrayOutputStream output = new ByteArrayOutputStream()) {
                 EpubCache.copy(input, output, TextDocument.MAX_BYTES * 6L);
                 json = new JSONObject(output.toString("UTF-8"));
@@ -75,6 +80,8 @@ public final class TextEditor {
                 content = saved;
                 caret = json.optInt("cursor", caret);
                 recovered = !content.equals(loaded.text);
+                if (recovered)
+                  loaded.recoverAgainst(json.optString("baseline", loaded.fingerprint()));
               }
             }
             String restored = content;
@@ -138,13 +145,17 @@ public final class TextEditor {
   void flush() {
     if (document == null) return;
     app.main.removeCallbacks(writeDraft);
-    final String uri = document.uri, snapshot = text;
+    final String uri = document.uri;
+    final TextDocument target = document;
     final int caret = cursor();
     final boolean dirty = revision != savedRevision;
     if (lastDraftDocument == document
         && lastDraftRevision == revision
         && lastDraftCursor == caret
         && lastDraftDirty == dirty) return;
+    final String snapshot = content();
+    text = snapshot;
+    final long snapshotRevision = revision;
     if (lastDraftDocument == document
         && draftTask instanceof Runnable
         && io.remove((Runnable) draftTask)) draftTask.cancel(false);
@@ -157,14 +168,21 @@ public final class TextEditor {
             () -> {
               try {
                 if (!dirty) {
-                  draft(uri).delete();
+                  new android.util.AtomicFile(draft(uri)).delete();
                   return;
                 }
-                JSONObject json = new JSONObject().put("text", snapshot).put("cursor", caret);
+                JSONObject json =
+                    new JSONObject()
+                        .put("text", snapshot)
+                        .put("cursor", caret)
+                        .put("baseline", target.draftFingerprint());
                 TextDocument.writeAtomic(draft(uri), json.toString().getBytes("UTF-8"));
               } catch (Exception error) {
                 app.main.post(
                     () -> {
+                      if (lastDraftDocument == target
+                          && lastDraftRevision == snapshotRevision
+                          && lastDraftCursor == caret) lastDraftRevision = -1;
                       if (app.controls != null)
                         app.controls.toast("Draft could not be saved: " + error.getMessage());
                     });
@@ -175,12 +193,18 @@ public final class TextEditor {
   View primary(MainActivity owner) {
     if (primary != null && primaryOwner == owner && primaryTheme == app.theme) return primary;
     cursor = cursor();
+    text = content();
     primaryTheme = app.theme;
     primaryOwner = owner;
     primary = new FrameLayout(owner);
     ReaderUi palette = new ReaderUi(owner, app);
     source = new NumberedText(palette, true);
     source.setFilters(new InputFilter[] {new InputFilter.LengthFilter(TextDocument.MAX_CHARS)});
+    source.limitLines(
+        TextDocument.MAX_LINES,
+        () -> {
+          if (app.controls != null) app.controls.toast("Text documents support up to 20,000 lines");
+        });
     source.setText(text);
     source.setSelection(Math.min(text.length(), cursor));
     source.setCursorVisible(true);
@@ -198,7 +222,6 @@ public final class TextEditor {
           }
 
           public void afterTextChanged(Editable value) {
-            text = value.toString();
             cursor = cursor();
             revision++;
             app.main.removeCallbacks(writeDraft);
@@ -290,7 +313,7 @@ public final class TextEditor {
     previewScroll.setVisibility(preview ? View.VISIBLE : View.GONE);
     if (!preview) return;
     int generation = ++previewGeneration;
-    String snapshot = text;
+    String snapshot = content();
     TaskExecutors.cancel(previewTask, app.lookups);
     previewTask =
         app.lookups.submit(
@@ -318,7 +341,7 @@ public final class TextEditor {
           (saving ? "Saving… · " : revision != savedRevision ? "Unsaved draft · " : "Saved · ")
               + app.current.name
               + " · "
-              + text.length()
+              + (source == null ? text.length() : source.length())
               + " characters");
   }
 
@@ -328,7 +351,7 @@ public final class TextEditor {
     saving = true;
     updateStatus();
     TextDocument target = document;
-    String snapshot = text;
+    String snapshot = content();
     long saved = revision;
     io.execute(
         () -> {
@@ -339,6 +362,7 @@ public final class TextEditor {
                   if (document != target) return;
                   saving = false;
                   savedRevision = saved;
+                  app.invalidatePreview(target.uri);
                   flush();
                   updateStatus();
                   if (app.controls != null) app.controls.toast("Document saved");
@@ -399,8 +423,71 @@ public final class TextEditor {
     ReaderUi ui = app.controls;
     LinearLayout body = ui.column();
     ui.rotationControls(body);
+    ui.option(body, "Save copy…", this::saveCopy);
+    ui.option(
+        body,
+        "Reload file…",
+        () ->
+            ui.menu(
+                "Discard draft and reload?",
+                new String[] {"Keep editing", "Discard draft and reload"},
+                choice -> {
+                  if (choice != 1 || app.current == null) return;
+                  Library.Entry original = app.current;
+                  String uri = original.uri;
+                  app.library();
+                  clear();
+                  io.execute(
+                      () -> {
+                        new android.util.AtomicFile(draft(uri)).delete();
+                        app.main.post(
+                            () -> {
+                              if (!app.closing) app.open(original);
+                            });
+                      });
+                }));
     ui.option(body, "Preferences", ui::preferences);
     ui.option(body, "Close app", app::close);
     ui.showDialog("Document", body);
+  }
+
+  private void saveCopy() {
+    if (document == null) return;
+    String content = content(), parent = app.folder, root = app.root;
+    DocumentFormat format = DocumentFormat.of(app.current.name);
+    app.controls.keyboard(
+        "Save a copy",
+        "",
+        "Save copy",
+        name -> {
+          io.execute(
+              () -> {
+                try {
+                  Library.Entry created =
+                      new LibraryStorage(app, root).create(parent, name, format, false);
+                  try {
+                    TextDocument copy = TextDocument.load(app, created.uri);
+                    copy.save(app, content);
+                  } catch (Exception error) {
+                    try {
+                      new LibraryStorage(app, root).delete(parent, created);
+                    } catch (Exception ignored) {
+                    }
+                    throw error;
+                  }
+                  app.main.post(
+                      () -> {
+                        if (!app.closing && app.controls != null)
+                          app.controls.toast("Copy saved: " + created.name);
+                      });
+                } catch (Exception error) {
+                  app.main.post(
+                      () -> {
+                        if (!app.closing && app.controls != null)
+                          app.controls.message("Copy not saved", error.getMessage());
+                      });
+                }
+              });
+        });
   }
 }

@@ -276,6 +276,17 @@ public final class ReaderApp extends Application {
             });
   }
 
+  void invalidatePreview(String uri) {
+    previewCache.entrySet().removeIf(entry -> entry.getKey().startsWith(uri + ":"));
+    if (selected != null && selected.uri.equals(uri)) {
+      ++previewGeneration;
+      TaskExecutors.cancel(previewTask, previews);
+      selectedPreview = null;
+      previewLoading = false;
+      if (mode.equals("library")) requestPreview(selected);
+    }
+  }
+
   public String collectionIcon(String uri) {
     return CollectionIcons.valid(collectionPrefs.getString("icon." + Library.id(uri), "folder"));
   }

@@ -15,7 +15,8 @@ public final class AppKeyboard extends LinearLayout {
 
   private final Target target;
   private final boolean multiline;
-  private boolean caps, symbols;
+  private boolean caps;
+  private int symbolSet;
   private final ArrayList<Button> letters = new ArrayList<>(), punctuation = new ArrayList<>();
 
   public AppKeyboard(ReaderUi ui, Target target, boolean multiline) {
@@ -60,8 +61,8 @@ public final class AppKeyboard extends LinearLayout {
         ui.button(
             "#+=",
             () -> {
-              symbols = !symbols;
-              String chars = symbols ? "#_[]{}<>`=" : "'\"!-:;()*/";
+              symbolSet = (symbolSet + 1) % 3;
+              String chars = new String[] {"'\"!-:;()*/", "#_[]{}<>`=", "~|+\\%@&$^:"}[symbolSet];
               for (int i = 0; i < punctuation.size(); i++)
                 punctuation.get(i).setText(chars.substring(i, i + 1));
             }));

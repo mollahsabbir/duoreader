@@ -85,7 +85,7 @@ service calls and runs offline.
 ## Limits and licensing
 
 Supports unencrypted, reflowable EPUB 2/3 and UTF-8/BOM-marked UTF-16 text.
-Text editing is limited to 2 MB / 524,288 characters; Markdown preview to 262,144
+Text editing is limited to 2 MB / 524,288 characters / 20,000 lines; Markdown preview to 262,144
 characters. Drafts autosave after a short typing pause. No PDF, DRM, full publisher CSS,
 embedded fonts, scripting, or fixed-layout support. Tested on Retroid Pocket
 Duo; other dual-display devices may differ. Reading data stays local and is

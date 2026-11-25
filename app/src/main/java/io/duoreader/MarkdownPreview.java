@@ -16,7 +16,12 @@ final class MarkdownPreview {
             .escapeHtml(true)
             .sanitizeUrls(true)
             .build()
-            .render(Parser.builder().build().parse(source));
+            .render(
+                Parser.builder()
+                    .maxOpenBlockParsers(128)
+                    .maxInlineNesting(128)
+                    .build()
+                    .parse(source));
     return Html.fromHtml(html, Html.FROM_HTML_MODE_COMPACT, null, null);
   }
 }

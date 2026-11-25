@@ -10,13 +10,16 @@ import java.util.Arrays;
 
 /** Bounded Unicode text I/O; preserve encoding and line endings when saving. */
 final class TextDocument {
-  static final int MAX_BYTES = 2 * 1024 * 1024, MAX_CHARS = 512 * 1024;
+  static final int MAX_BYTES = 2 * 1024 * 1024, MAX_CHARS = 512 * 1024, MAX_LINES = 20000;
   final String uri;
   final Charset charset;
   final byte[] bom;
   final String newline;
   String text;
   byte[] baseline;
+  private volatile String fingerprint;
+  private volatile String draftFingerprint;
+  private boolean draftConflict;
 
   private TextDocument(
       String uri, String text, Charset charset, byte[] bom, String newline, byte[] baseline) {
@@ -26,6 +29,31 @@ final class TextDocument {
     this.bom = bom;
     this.newline = newline;
     this.baseline = baseline;
+    this.fingerprint = fingerprint(baseline);
+    this.draftFingerprint = fingerprint;
+  }
+
+  private static String fingerprint(byte[] bytes) {
+    try {
+      return android.util.Base64.encodeToString(
+          java.security.MessageDigest.getInstance("SHA-256").digest(bytes),
+          android.util.Base64.NO_WRAP);
+    } catch (java.security.NoSuchAlgorithmException error) {
+      throw new IllegalStateException(error);
+    }
+  }
+
+  String fingerprint() {
+    return fingerprint;
+  }
+
+  String draftFingerprint() {
+    return draftFingerprint;
+  }
+
+  void recoverAgainst(String expected) {
+    draftFingerprint = expected;
+    draftConflict = !expected.equals(fingerprint);
   }
 
   static InputStream input(Context context, String uri) throws IOException {
@@ -85,13 +113,12 @@ final class TextDocument {
     if (decoded.length() > MAX_CHARS)
       throw new IOException("Text files must contain at most 524,288 characters");
     String newline = decoded.contains("\r\n") ? "\r\n" : decoded.contains("\r") ? "\r" : "\n";
-    return new TextDocument(
-        uri,
-        decoded.replace("\r\n", "\n").replace('\r', '\n'),
-        encoding,
-        Arrays.copyOf(bytes, skip),
-        newline,
-        bytes);
+    String normalized = decoded.replace("\r\n", "\n").replace('\r', '\n');
+    int lines = 1;
+    for (int i = 0; i < normalized.length(); i++)
+      if (normalized.charAt(i) == '\n' && ++lines > MAX_LINES)
+        throw new IOException("Text files support up to 20,000 logical lines");
+    return new TextDocument(uri, normalized, encoding, Arrays.copyOf(bytes, skip), newline, bytes);
   }
 
   private byte[] encode(String content) throws IOException {
@@ -104,12 +131,16 @@ final class TextDocument {
   }
 
   synchronized void save(Context context, String content) throws IOException {
+    if (draftConflict)
+      throw new IOException(
+          "The original changed since this draft was created. Use Menu → Save copy, or reload the"
+              + " file to discard the draft.");
     if (!Arrays.equals(read(context, uri), baseline))
       throw new IOException(
           "The file changed outside Duo Reader. Your draft is safe; reopen before overwriting it.");
     byte[] bytes = encode(content);
     Uri destination = Uri.parse(uri);
-    if ("file".equals(destination.getScheme())) writeAtomic(new File(destination.getPath()), bytes);
+    if ("file".equals(destination.getScheme())) replaceFile(new File(destination.getPath()), bytes);
     else {
       // Document providers cannot promise atomic replacement. Keep a private baseline backup
       // until a read-back verifies the write, including providers that ignore truncation.
@@ -127,6 +158,8 @@ final class TextDocument {
       backup.delete();
     }
     baseline = bytes;
+    fingerprint = fingerprint(bytes);
+    draftFingerprint = fingerprint;
     text = content;
   }
 
@@ -141,6 +174,29 @@ final class TextDocument {
     } catch (IOException error) {
       if (output != null) file.failWrite(output);
       throw error;
+    }
+  }
+
+  private static void replaceFile(File destination, byte[] bytes) throws IOException {
+    // A unique sidecar avoids overwriting an unrelated user-owned .bak or .new file.
+    File temporary = File.createTempFile(".duoreader-save-", ".tmp", destination.getParentFile());
+    try {
+      try (FileOutputStream output = new FileOutputStream(temporary)) {
+        output.write(bytes);
+        output.getFD().sync();
+      }
+      try {
+        java.nio.file.Files.move(
+            temporary.toPath(),
+            destination.toPath(),
+            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      } catch (java.nio.file.AtomicMoveNotSupportedException error) {
+        if (!temporary.renameTo(destination))
+          throw new IOException("This filesystem cannot safely replace the file", error);
+      }
+    } finally {
+      temporary.delete();
     }
   }
 }
