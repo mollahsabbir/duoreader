@@ -33,12 +33,13 @@ public final class PortraitHost extends ViewGroup {
     int height = MeasureSpec.getSize(heightSpec);
     setMeasuredDimension(width, height);
     if (getChildCount() == 0) return;
+    boolean swaps = ReadingOrientation.swapsAxes(app.rotation);
     getChildAt(0)
         .measure(
             MeasureSpec.makeMeasureSpec(
-                Math.max(1, height - horizontalInset * 2), MeasureSpec.EXACTLY),
+                Math.max(1, (swaps ? height : width) - horizontalInset * 2), MeasureSpec.EXACTLY),
             MeasureSpec.makeMeasureSpec(
-                Math.max(1, width - verticalInset * 2), MeasureSpec.EXACTLY));
+                Math.max(1, (swaps ? width : height) - verticalInset * 2), MeasureSpec.EXACTLY));
   }
 
   @Override
@@ -52,6 +53,6 @@ public final class PortraitHost extends ViewGroup {
     content.layout(x, y, x + width, y + height);
     content.setPivotX(width / 2f);
     content.setPivotY(height / 2f);
-    content.setRotation(app.dpadBottom ? 90 : -90);
+    content.setRotation(app.rotation);
   }
 }

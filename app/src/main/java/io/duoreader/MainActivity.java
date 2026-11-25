@@ -82,10 +82,13 @@ public final class MainActivity extends Activity {
           break;
         }
       if (other.widthPixels > 0) {
+        boolean swaps = ReadingOrientation.swapsAxes(app.rotation);
         float referenceWidth =
-            Math.min(other.widthPixels, other.heightPixels) * own.xdpi / Math.max(1, other.xdpi);
+            (swaps ? Math.min(other.widthPixels, other.heightPixels) : Math.max(other.widthPixels, other.heightPixels))
+                * own.xdpi / Math.max(1, other.xdpi);
         float referenceHeight =
-            Math.max(other.widthPixels, other.heightPixels) * own.ydpi / Math.max(1, other.ydpi);
+            (swaps ? Math.max(other.widthPixels, other.heightPixels) : Math.min(other.widthPixels, other.heightPixels))
+                * own.ydpi / Math.max(1, other.ydpi);
         float fit =
             Math.min(pageHost.getWidth() / referenceWidth, pageHost.getHeight() / referenceHeight);
         width = Math.min(pageHost.getWidth(), Math.round(referenceWidth * fit));
@@ -193,7 +196,7 @@ public final class MainActivity extends Activity {
 
   @Override
   public boolean dispatchKeyEvent(KeyEvent event) {
-    event = ReaderInput.orient(event, app.dpadBottom);
+    event = ReaderInput.orient(event, app.rotation);
     if (app.controls != null && app.controls.handleKey(event)) return true;
     if (app.bottom != null) return app.bottom.getWindow().superDispatchKeyEvent(event);
     return super.dispatchKeyEvent(event);

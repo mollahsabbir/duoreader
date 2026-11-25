@@ -395,10 +395,10 @@ public final class RobustnessTests extends Instrumentation {
             && app.bottom.getResources().getConfiguration().orientation == 2);
     ui(
         () -> {
-          app.dpadBottom = false;
+          app.rotation = 270;
           app.appearance();
         });
-    until(() -> app.controls.root.getRotation() == -90, "opposite grip layout");
+    until(() -> app.controls.root.getRotation() == 270, "opposite grip layout");
     check(
         "Changing grip rotates app content without rotating Android",
         app.top.getRequestedOrientation() == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
@@ -406,7 +406,7 @@ public final class RobustnessTests extends Instrumentation {
             && app.controls.root.getHeight() > app.controls.root.getWidth());
     ui(
         () -> {
-          app.dpadBottom = true;
+          app.rotation = 90;
           app.appearance();
         });
     until(() -> app.controls.root.getRotation() == 90, "bottom D-pad grip");

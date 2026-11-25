@@ -5,6 +5,7 @@
         <activity android:name="io.duoreader.BackdropSecondary" android:exported="true" android:taskAffinity="io.duoreader.tests.secondary" android:resizeableActivity="true" android:screenOrientation="landscape" />
     </application>
     <instrumentation android:name="io.duoreader.DeviceTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
+    <instrumentation android:name="io.duoreader.DisplayTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.ResumeProbe" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.LibraryTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.TouchNavigationTests" android:targetPackage="io.duoreader" android:functionalTest="true" />

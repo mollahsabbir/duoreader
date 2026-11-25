@@ -45,7 +45,12 @@ public final class ReaderIcons {
       paint.setStrokeJoin(Paint.Join.ROUND);
       paint.setStrokeCap(Paint.Cap.ROUND);
       Path p = new Path();
-      if (kind.equals("copy")) {
+      if (kind.startsWith("rotate-")) {
+        canvas.rotate(Integer.parseInt(kind.substring(7)) - 90, 12, 12);
+        canvas.drawRoundRect(4, 2, 20, 18, 2, 2, paint);
+        canvas.drawLine(12, 3, 12, 17, paint);
+        canvas.drawCircle(12, 21, 1, paint);
+      } else if (kind.equals("copy")) {
         canvas.drawRoundRect(8, 8, 21, 21, 1.5f, 1.5f, paint);
         p.moveTo(16, 5);
         p.lineTo(16, 3);

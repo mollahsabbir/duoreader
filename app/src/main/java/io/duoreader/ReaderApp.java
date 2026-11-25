@@ -61,7 +61,8 @@ public final class ReaderApp extends Application {
   public int topWidth = 420, topHeight = 600, bottomWidth = 420, bottomHeight = 450;
   public int theme = 2, paper = 1, font = 0, fontSize = 18, margin = 24;
   public float spacing = 1.4f, brightness = -1f;
-  public boolean animate = true, awake = true, matchScreens = false, dpadBottom = true;
+  public boolean animate = true, awake = true, matchScreens = false;
+  public int rotation = 90;
   public JSONArray marks = new JSONArray();
   public String searchTerm = "";
   public static final String[] THEMES = {"Black", "16Bit", "GC", "Ice Blue", "Clear Purple"};
@@ -126,7 +127,7 @@ public final class ReaderApp extends Application {
     awake = prefs.getBoolean("awake", true);
     brightness = prefs.getFloat("brightness", -1f);
     matchScreens = prefs.getBoolean("matchScreens", false);
-    dpadBottom = prefs.getBoolean("dpadBottom", true);
+    rotation = prefs.getInt("rotation", prefs.getBoolean("dpadBottom", true) ? 90 : 270);
     restoring = prefs.getBoolean("reading", false);
     resumePending = restoring;
     ReaderSettings.sanitize(this);
@@ -812,11 +813,13 @@ public final class ReaderApp extends Application {
         .putBoolean("awake", awake)
         .putFloat("brightness", brightness)
         .putBoolean("matchScreens", matchScreens)
-        .putBoolean("dpadBottom", dpadBottom)
+        .putInt("rotation", rotation)
+        .remove("dpadBottom")
         .apply();
     if (mode.equals("reading")) paginate();
     save();
     changed();
+    if (controls != null) controls.updateDialogOrientation();
     if (top != null) top.windowSettings();
     if (bottom != null) bottom.windowSettings();
   }

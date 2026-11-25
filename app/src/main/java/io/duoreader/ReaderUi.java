@@ -32,6 +32,7 @@ public final class ReaderUi {
   private Button fontQuick, sizeQuick, spacingQuick, marginQuick, matchQuick;
   final ReaderFeedback feedback = new ReaderFeedback(this);
   FrameLayout dialogSurface;
+  private PortraitHost dialogHost;
   private java.util.concurrent.Future<?> lookupTask;
   private Epub displayedBook;
 
@@ -681,7 +682,7 @@ public final class ReaderUi {
         new Dialog(activity) {
           @Override
           public boolean dispatchKeyEvent(KeyEvent event) {
-            return super.dispatchKeyEvent(ReaderInput.orient(event, app.dpadBottom));
+            return super.dispatchKeyEvent(ReaderInput.orient(event, app.rotation));
           }
         };
     d.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -703,7 +704,8 @@ public final class ReaderUi {
     layout.addView(close, bp);
     FrameLayout surface = new FrameLayout(activity);
     surface.addView(layout, new FrameLayout.LayoutParams(-1, -1));
-    d.setContentView(new PortraitHost(activity, surface, dp(11), dp(17)));
+    dialogHost = new PortraitHost(activity, surface, dp(11), dp(17));
+    d.setContentView(dialogHost);
     dialog = d;
     dialogSurface = surface;
     d.setOnDismissListener(
@@ -759,6 +761,31 @@ public final class ReaderUi {
     LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
     p.setMargins(dp(2), dp(3), dp(2), dp(3));
     body.addView(b, p);
+  }
+
+  public void updateDialogOrientation() {
+    if (dialogHost != null && dialog != null && dialog.isShowing()) dialogHost.updateGrip();
+  }
+
+  void rotationControls(LinearLayout body) {
+    LinearLayout choices = row();
+    for (int angle : new int[] {0, 90, 180, 270}) {
+      Button choice =
+          button(
+              angle + "°",
+              () -> {
+                app.controller.cancel();
+                app.rotation = angle;
+                app.appearance();
+                if (dialog != null) dialog.dismiss();
+              });
+      choice.setCompoundDrawablesWithIntrinsicBounds(
+          ReaderIcons.icon("rotate-" + angle, accent(), dp(22)), null, null, null);
+      choice.setContentDescription("Rotate content " + angle + " degrees");
+      choice.setSelected(app.rotation == angle);
+      addWeighted(choices, choice);
+    }
+    body.addView(choices);
   }
 
   void menu(String title, String[] choices, java.util.function.IntConsumer action) {
@@ -906,13 +933,14 @@ public final class ReaderUi {
         new Dialog(activity) {
           @Override
           public boolean dispatchKeyEvent(KeyEvent event) {
-            return super.dispatchKeyEvent(ReaderInput.orient(event, app.dpadBottom));
+            return super.dispatchKeyEvent(ReaderInput.orient(event, app.rotation));
           }
         };
     picker.requestWindowFeature(Window.FEATURE_NO_TITLE);
     FrameLayout surface = new FrameLayout(activity);
     surface.addView(body, new FrameLayout.LayoutParams(-1, -1));
-    picker.setContentView(new PortraitHost(activity, surface));
+    dialogHost = new PortraitHost(activity, surface);
+    picker.setContentView(dialogHost);
     dialog = picker;
     dialogSurface = surface;
     picker.setOnDismissListener(
@@ -1009,16 +1037,17 @@ public final class ReaderUi {
           });
       return;
     }
-    menu(
-        "Reading desk",
-        new String[] {
-          "Bookmarks & notes  ·  " + app.marks.length(),
-          "Select passage with buttons",
-          "English dictionary",
-          "Keybindings",
-          "Button guide",
-          "Close app"
-        },
+    LinearLayout readingMenu = column();
+    rotationControls(readingMenu);
+    String[] readingChoices = {
+      "Bookmarks & notes  ·  " + app.marks.length(),
+      "Select passage with buttons",
+      "English dictionary",
+      "Keybindings",
+      "Button guide",
+      "Close app"
+    };
+    java.util.function.IntConsumer readingAction =
         i -> {
           switch (i) {
             case 0:
@@ -1039,7 +1068,18 @@ public final class ReaderUi {
             case 5:
               app.close();
           }
-        });
+        };
+    for (int i = 0; i < readingChoices.length; i++) {
+      final int index = i;
+      option(
+          readingMenu,
+          readingChoices[i],
+          () -> {
+            if (dialog != null) dialog.dismiss();
+            readingAction.accept(index);
+          });
+    }
+    showDialog("Reading desk", readingMenu);
   }
 
   public void keybindings() {
@@ -1533,14 +1573,7 @@ public final class ReaderUi {
           app.setRoot(Uri.fromFile(Library.appDirectory(app)).toString());
         });
     option(body, "Library theme  ·  " + ReaderApp.THEMES[app.theme], this::libraryThemes);
-    option(
-        body,
-        "Holding position  ·  D-pad at " + (app.dpadBottom ? "bottom" : "top"),
-        () -> {
-          app.dpadBottom = !app.dpadBottom;
-          app.appearance();
-          preferences();
-        });
+    rotationControls(body);
     option(
         body,
         "Match larger screen to smaller  ·  " + (app.matchScreens ? "On" : "Off"),
@@ -1659,7 +1692,7 @@ public final class ReaderUi {
         new StringBuilder(
             "HOLD YOUR DUO LIKE A BOOK\n"
                 + "Larger screen left, smaller touch screen right, D-pad at the "
-                + (app.dpadBottom ? "bottom" : "top")
+                + (app.rotation + "°")
                 + ". Directions follow this grip.\n\nYOUR READING SHORTCUTS\n");
     for (int i = 0; i < ReadingBindings.KEYS.length; i++)
       keys.append(ReadingBindings.LABELS[i])

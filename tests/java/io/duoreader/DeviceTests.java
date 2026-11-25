@@ -176,7 +176,7 @@ public final class DeviceTests extends Instrumentation {
               && app.controls.root.getHeight() > app.controls.root.getWidth());
       check(
           "Both Android displays stay landscape while the content follows the bottom D-pad grip",
-          app.dpadBottom
+          app.rotation == 90
               && app.top.getDisplay().getRotation() == Surface.ROTATION_90
               && app.bottom.getDisplay().getRotation() == Surface.ROTATION_0);
       check(

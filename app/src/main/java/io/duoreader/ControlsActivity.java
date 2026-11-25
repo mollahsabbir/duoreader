@@ -75,7 +75,7 @@ public final class ControlsActivity extends Activity {
 
   @Override
   public boolean dispatchKeyEvent(KeyEvent event) {
-    event = ReaderInput.orient(event, app.dpadBottom);
+    event = ReaderInput.orient(event, app.rotation);
     if (ui != null && ui.handleKey(event)) return true;
     return super.dispatchKeyEvent(event);
   }

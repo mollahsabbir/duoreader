@@ -10,6 +10,7 @@ public final class ReaderSettings {
     app.font = clamp(app.font, 0, ReaderApp.FONTS.length - 1);
     app.fontSize = clamp(app.fontSize, 12, 32);
     app.margin = clamp(app.margin, 8, 64);
+    app.rotation = ReadingOrientation.normalize(app.rotation);
     app.spacing =
         Float.isNaN(app.spacing) || Float.isInfinite(app.spacing)
             ? 1.4f
