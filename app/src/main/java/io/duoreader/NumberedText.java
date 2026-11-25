@@ -130,6 +130,16 @@ public final class NumberedText extends EditText {
   }
 
   public void move(int direction) {
+    Layout layout = getLayout();
+    if (layout != null) {
+      Editable text = getText();
+      if (direction == -1) Selection.moveLeft(text, layout);
+      else if (direction == 1) Selection.moveRight(text, layout);
+      else if (direction == -2) Selection.moveUp(text, layout);
+      else if (direction == 2) Selection.moveDown(text, layout);
+      bringPointIntoView(Math.max(0, getSelectionEnd()));
+      return;
+    }
     int offset = Math.max(0, getSelectionStart());
     if (direction == -1 && offset > 0) offset = Character.offsetByCodePoints(getText(), offset, -1);
     if (direction == 1 && offset < length())

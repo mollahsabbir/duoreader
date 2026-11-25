@@ -60,6 +60,132 @@ public final class EditorTests extends FeatureTest {
         "editor open");
   }
 
+  void key(int key, boolean upper) {
+    ui(
+        () -> {
+          android.app.Activity target = upper ? app.top : app.bottom;
+          target.dispatchKeyEvent(new ReaderInput.ScreenKey(KeyEvent.ACTION_DOWN, key, 0));
+          target.dispatchKeyEvent(new ReaderInput.ScreenKey(KeyEvent.ACTION_UP, key, 0));
+        });
+  }
+
+  void controllerKey(int key) {
+    ui(
+        () -> {
+          for (int action : new int[] {KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP})
+            app.top.dispatchKeyEvent(
+                new KeyEvent(0, 0, action, key, 0, 0, -1, 0, 0, InputDevice.SOURCE_GAMEPAD));
+        });
+  }
+
+  void captureKeyboard() {
+    View root = app.controls.root;
+    android.graphics.Bitmap bitmap =
+        android.graphics.Bitmap.createBitmap(
+            root.getWidth(), root.getHeight(), android.graphics.Bitmap.Config.RGB_565);
+    try (OutputStream output =
+        new FileOutputStream(new File(app.getFilesDir(), "editor-keyboard.png"))) {
+      root.draw(new android.graphics.Canvas(bitmap));
+      bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output);
+    } catch (IOException error) {
+      throw new AssertionError(error);
+    } finally {
+      bitmap.recycle();
+    }
+  }
+
+  void cursorControls(File directory) throws Exception {
+    File fixture = new File(directory, "cursor-navigation.txt");
+    StringBuilder text = new StringBuilder("A😀BC\n");
+    for (int i = 0; i < 90; i++)
+      text.append("A long line that wraps across the display. ")
+          .append(i)
+          .append(' ')
+          .append("Keep moving through the same logical line. ")
+          .append('\n');
+    TextDocument.writeAtomic(fixture, text.toString().getBytes(StandardCharsets.UTF_8));
+    new android.util.AtomicFile(
+            new File(
+                app.getFilesDir(),
+                "draft-" + Library.id(Uri.fromFile(fixture).toString()) + ".json"))
+        .delete();
+    open(fixture);
+    NumberedText input = source(app.top.pageHost);
+    until(() -> input.getLayout() != null, "cursor layout");
+    check("D-pad defaults to cursor movement", find(app.controls.root, "D-pad: Cursor") != null);
+    ui(() -> input.setSelection(1));
+    key(KeyEvent.KEYCODE_DPAD_RIGHT, false);
+    check(
+        "D-pad right skips a whole emoji and key-up does not move twice",
+        input.getSelectionStart() == 3);
+    key(KeyEvent.KEYCODE_DPAD_LEFT, true);
+    check("D-pad events from the larger display move the cursor", input.getSelectionStart() == 1);
+    ui(
+        () -> {
+          app.controls.routeControllerKey(
+              new ReaderInput.ScreenKey(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT, 0));
+          app.controls.routeControllerKey(
+              new ReaderInput.ScreenKey(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT, 1));
+          app.controls.routeControllerKey(
+              new ReaderInput.ScreenKey(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_RIGHT, 0));
+        });
+    check("Held D-pad repeats cursor movement", input.getSelectionStart() == 4);
+    ui(() -> input.setSelection(0));
+    key(KeyEvent.KEYCODE_DPAD_LEFT, false);
+    key(KeyEvent.KEYCODE_DPAD_UP, false);
+    check("Cursor stays within the start of the document", input.getSelectionStart() == 0);
+    ui(() -> input.setSelection(input.length()));
+    key(KeyEvent.KEYCODE_DPAD_RIGHT, false);
+    key(KeyEvent.KEYCODE_DPAD_DOWN, false);
+    check(
+        "Cursor stays within the end of the document", input.getSelectionStart() == input.length());
+    int start = text.indexOf("A long") + 5;
+    ui(() -> input.setSelection(start));
+    int line = input.getLayout().getLineForOffset(start);
+    key(KeyEvent.KEYCODE_DPAD_DOWN, false);
+    check(
+        "Down follows a wrapped visual line",
+        input.getLayout().getLineForOffset(input.getSelectionStart()) == line + 1);
+    key(KeyEvent.KEYCODE_DPAD_UP, false);
+    check("Up returns to the preceding visual line", input.getSelectionStart() == start);
+    ui(
+        () -> {
+          input.setSelection(0);
+          for (int i = 0; i < 100; i++)
+            app.controls.routeControllerKey(
+                new ReaderInput.ScreenKey(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN, i));
+          app.controls.routeControllerKey(
+              new ReaderInput.ScreenKey(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_DOWN, 0));
+        });
+    until(() -> input.getScrollY() > 0, "scroll to caret");
+    check("Cursor movement scrolls the larger display to the caret", input.getScrollY() > 0);
+    int caret = input.getSelectionStart();
+    key(KeyEvent.KEYCODE_BUTTON_SELECT, false);
+    View focus = app.bottom.getCurrentFocus();
+    check(
+        "Select enables button-only keyboard navigation",
+        find(app.controls.root, "D-pad: Keys") != null && focus instanceof Button);
+    key(KeyEvent.KEYCODE_DPAD_RIGHT, true);
+    check(
+        "Keyboard navigation moves focus without moving the cursor",
+        app.bottom.getCurrentFocus() != focus && input.getSelectionStart() == caret);
+    int length = input.length();
+    key(KeyEvent.KEYCODE_BUTTON_A, true);
+    check("A types the focused key", input.length() == length + 1);
+    key(KeyEvent.KEYCODE_BUTTON_SELECT, true);
+    caret = input.getSelectionStart();
+    key(KeyEvent.KEYCODE_DPAD_LEFT, false);
+    check(
+        "Select returns to cursor movement",
+        find(app.controls.root, "D-pad: Cursor") != null && input.getSelectionStart() == caret - 1);
+    click("q");
+    caret = input.getSelectionStart();
+    key(KeyEvent.KEYCODE_DPAD_RIGHT, false);
+    check(
+        "Touch typing keeps D-pad cursor movement available",
+        input.getSelectionStart() == caret + 1);
+  }
+
   void exercise() throws Exception {
     File directory = new File(getTargetContext().getCacheDir(), "editor-fixtures");
     directory.mkdirs();
@@ -194,6 +320,7 @@ public final class EditorTests extends FeatureTest {
       check(
           "Reopening recovers unsaved text",
           source(app.top.pageHost).getText().toString().endsWith(" unsaved"));
+      cursorControls(directory);
       for (int angle : new int[] {0, 90, 180, 270}) {
         ui(
             () -> {
@@ -211,6 +338,26 @@ public final class EditorTests extends FeatureTest {
         check(
             "Editor keyboard stays at the bottom at rotation " + angle,
             Math.abs(keys.getBottom() - app.controls.root.getHeight()) <= app.controls.dp(8));
+        NumberedText caret = source(app.top.pageHost);
+        ui(() -> caret.setSelection(0));
+        int[] directions = {
+          KeyEvent.KEYCODE_DPAD_UP,
+          KeyEvent.KEYCODE_DPAD_RIGHT,
+          KeyEvent.KEYCODE_DPAD_DOWN,
+          KeyEvent.KEYCODE_DPAD_LEFT
+        };
+        int physicalRight = directions[(1 + angle / 90) % 4];
+        controllerKey(physicalRight);
+        check("D-pad cursor follows rotation " + angle, caret.getSelectionStart() == 1);
+        key(KeyEvent.KEYCODE_BUTTON_SELECT, false);
+        controllerKey(physicalRight);
+        check(
+            "Keyboard focus follows rotation " + angle,
+            app.bottom.getCurrentFocus() instanceof Button
+                && ((Button) app.bottom.getCurrentFocus()).getText().toString().equals("2")
+                && caret.getSelectionStart() == 1);
+        key(KeyEvent.KEYCODE_BUTTON_SELECT, false);
+        if (angle == 90) ui(this::captureKeyboard);
       }
     } finally {
       ui(

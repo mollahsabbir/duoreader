@@ -38,6 +38,8 @@ no launcher dependency.
 Rotation and matching page sizes are in Preferences. Separate font sizes require
 **Menu → Advanced display settings → Allow different font sizes**.
 In the editor, **Save** writes the original file; unsaved edits are kept as local drafts.
+The D-pad moves the cursor across characters and wrapped lines. **Select** or the
+**D-pad: Cursor/Keys** button switches to keyboard navigation; **A** selects a key.
 Use **+** to create items and **Manage** for the selected item.
 Bring files from elsewhere with **+ → Import files**. Select up to 64 EPUB,
 TXT, Markdown, CBZ, or CBR files in Android’s picker. Imports go into the current

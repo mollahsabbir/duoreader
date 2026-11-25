@@ -97,6 +97,10 @@ public final class AppKeyboard extends LinearLayout {
     row.addView(key, params);
   }
 
+  void focusFirstKey() {
+    letters.get(0).requestFocusFromTouch();
+  }
+
   public boolean handle(KeyEvent event) {
     int key = event.getKeyCode();
     boolean space = key == KeyEvent.KEYCODE_BUTTON_Y || key == KeyEvent.KEYCODE_SPACE;

@@ -21,6 +21,9 @@ public final class TextEditor {
   private int primaryTheme = -1;
   private final EditHistory history = new EditHistory();
   private AppKeyboard keyboard;
+  private Button inputMode;
+  private View cursorFocus;
+  private boolean keyboardNavigation;
   private String text = "";
   private long revision, savedRevision;
   private int cursor;
@@ -135,6 +138,9 @@ public final class TextEditor {
     primary = null;
     primaryOwner = null;
     keyboard = null;
+    inputMode = null;
+    cursorFocus = null;
+    keyboardNavigation = false;
     history.clear();
     saving = false;
     rendered = null;
@@ -259,25 +265,19 @@ public final class TextEditor {
               }));
     ui.addWeighted(navigation, ui.button("Menu", this::menu));
     body.addView(navigation);
+    LinearLayout status = ui.row();
     statusView = ui.text("", 12, ui.muted());
-    body.addView(statusView);
+    status.addView(statusView, new LinearLayout.LayoutParams(0, -2, 1));
+    inputMode = ui.button("", this::toggleInputMode);
+    inputMode.setTextSize(12);
+    status.addView(inputMode, new LinearLayout.LayoutParams(ui.dp(140), ui.dp(44)));
+    body.addView(status);
     updateStatus();
     body.addView(new View(ui.activity), new LinearLayout.LayoutParams(-1, 0, 1));
     LinearLayout arrows = ui.row();
     for (int direction : new int[] {-2, -1, 1, 2}) {
       String label = direction == -2 ? "↑" : direction == -1 ? "←" : direction == 1 ? "→" : "↓";
-      ui.addWeighted(
-          arrows,
-          ui.button(
-              label,
-              () -> {
-                if (source != null) {
-                  preview = false;
-                  applyPreview();
-                  source.move(direction);
-                  cursor = cursor();
-                }
-              }));
+      ui.addWeighted(arrows, ui.button(label, () -> moveCursor(direction)));
     }
     body.addView(arrows);
     ui.addWeighted(arrows, ui.button("Undo", () -> history(true)));
@@ -297,7 +297,47 @@ public final class TextEditor {
             true);
     body.addView(keyboard, new LinearLayout.LayoutParams(-1, -2));
     ui.root.addView(body, new FrameLayout.LayoutParams(-1, -1));
-    keyboard.post(() -> keyboard.requestFocus(View.FOCUS_FORWARD));
+    cursorFocus = body;
+    body.setFocusableInTouchMode(true);
+    body.post(
+        () -> {
+          if (cursorFocus == body) updateInputMode();
+        });
+  }
+
+  private void moveCursor(int direction) {
+    edit(() -> source.move(direction));
+    cursor = cursor();
+  }
+
+  private void toggleInputMode() {
+    keyboardNavigation = !keyboardNavigation;
+    updateInputMode();
+  }
+
+  private void updateInputMode() {
+    if (inputMode == null || keyboard == null || cursorFocus == null) return;
+    inputMode.setText("D-pad: " + (keyboardNavigation ? "Keys" : "Cursor"));
+    inputMode.setContentDescription(
+        "D-pad controls "
+            + (keyboardNavigation ? "keyboard navigation" : "the text cursor")
+            + ". Press Select or tap to switch.");
+    cursorFocus.setFocusableInTouchMode(!keyboardNavigation);
+    cursorFocus.setFocusable(!keyboardNavigation);
+    if (keyboardNavigation) keyboard.focusFirstKey();
+    else cursorFocus.requestFocus();
+  }
+
+  private void moveControlFocus(int direction) {
+    int focusDirection =
+        direction == -1
+            ? View.FOCUS_LEFT
+            : direction == 1 ? View.FOCUS_RIGHT : direction == -2 ? View.FOCUS_UP : View.FOCUS_DOWN;
+    // Search inside the unrotated content, rather than Android's landscape window.
+    View next =
+        FocusFinder.getInstance()
+            .findNextFocus(app.controls.root, app.bottom.getCurrentFocus(), focusDirection);
+    if (next != null) next.requestFocusFromTouch();
   }
 
   private void edit(Runnable action) {
@@ -398,6 +438,24 @@ public final class TextEditor {
   boolean handle(KeyEvent event) {
     if (keyboard != null && keyboard.handle(event)) return true;
     int key = event.getKeyCode();
+    int direction =
+        key == KeyEvent.KEYCODE_DPAD_LEFT
+            ? -1
+            : key == KeyEvent.KEYCODE_DPAD_RIGHT
+                ? 1
+                : key == KeyEvent.KEYCODE_DPAD_UP ? -2 : key == KeyEvent.KEYCODE_DPAD_DOWN ? 2 : 0;
+    if (direction != 0) {
+      if (event.getAction() == KeyEvent.ACTION_DOWN) {
+        if (keyboardNavigation) moveControlFocus(direction);
+        else moveCursor(direction);
+      }
+      return true;
+    }
+    if (key == KeyEvent.KEYCODE_BUTTON_SELECT) {
+      if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0)
+        toggleInputMode();
+      return true;
+    }
     if (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_BUTTON_B) {
       if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) app.library();
       return true;
@@ -408,8 +466,11 @@ public final class TextEditor {
     }
     if (key == KeyEvent.KEYCODE_BUTTON_A || key == KeyEvent.KEYCODE_DPAD_CENTER) {
       if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-        View focus = app.bottom.getCurrentFocus();
-        if (focus != null) focus.performClick();
+        if (!keyboardNavigation) toggleInputMode();
+        else {
+          View focus = app.bottom.getCurrentFocus();
+          if (focus != null) focus.performClick();
+        }
       }
       return true;
     }
