@@ -101,10 +101,23 @@ public final class DisplayTests extends FeatureTest {
           correct &= ReaderInput.orient(mapped, angle).getKeyCode() == mapped.getKeyCode();
         }
         check("Controller directions rotate once at " + angle, correct);
+        ui(() -> app.controls.preferences());
+        boolean iconsVisible = true;
+        for (int choice : new int[] {0, 90, 180, 270}) {
+          android.widget.Button button =
+              (android.widget.Button)
+                  app.controls.findButton(app.controls.dialogSurface, choice + "°");
+          android.graphics.drawable.Drawable icon = button.getCompoundDrawables()[0];
+          iconsVisible &=
+              icon != null && icon.getBounds().width() > 0 && icon.getBounds().height() > 0;
+        }
+        check("All direction icons have visible bounds at rotation " + angle, iconsVisible);
+        ui(() -> app.controls.dialog.dismiss());
       }
     } finally {
       ui(
           () -> {
+            if (app.controls.dialog != null) app.controls.dialog.dismiss();
             app.rotation = original;
             app.allowDifferentFontSizes = separate;
             app.upperFontSize = upperSize;

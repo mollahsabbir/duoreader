@@ -849,8 +849,9 @@ public final class ReaderUi {
                 app.appearance();
                 if (dialog != null) dialog.dismiss();
               });
-      choice.setCompoundDrawablesWithIntrinsicBounds(
+      choice.setCompoundDrawables(
           ReaderIcons.icon("rotate-" + angle, accent(), dp(22)), null, null, null);
+      choice.setCompoundDrawablePadding(dp(4));
       choice.setContentDescription("Rotate content " + angle + " degrees");
       choice.setSelected(app.rotation == angle);
       addWeighted(choices, choice);
