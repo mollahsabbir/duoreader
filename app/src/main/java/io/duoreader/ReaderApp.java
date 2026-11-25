@@ -404,7 +404,7 @@ public final class ReaderApp extends Application {
   }
 
   public void open(Library.Entry entry) {
-    if (busy || closing) return;
+    if (busy || closing || libraryManager.isWorking()) return;
     turns.cancel();
     libraryRepository.cancelRequests();
     TaskExecutors.cancel(previewTask, previews);

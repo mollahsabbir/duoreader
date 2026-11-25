@@ -75,6 +75,14 @@ public final class LibraryManagementTests extends FeatureTest {
       create("New TXT file", "Created");
       check("Creation uses the correct TXT extension", entry("Created.txt") != null);
       Library.Entry text = entry("Created.txt");
+      ui(() -> app.open(text));
+      until(() -> !app.busy && app.mode.equals("editing"), "created text editor");
+      ui(
+          () -> {
+            NumberedText source = field(app.top.pageHost);
+            source.insert("Unsaved text that follows a move");
+            app.library();
+          });
       ui(() -> app.libraryManager.manage(text));
       click("Move to collection…");
       until(
@@ -88,8 +96,29 @@ public final class LibraryManagementTests extends FeatureTest {
               app.controls.dialog != null
                   && find(app.controls.dialogSurface, "Parent collection") != null,
           "collection destination");
-      click("Move here");
-      until(() -> !app.busy && !app.loadingFolder, "move completed");
+      ui(
+          () -> {
+            find(app.controls.dialogSurface, "Move here").performClick();
+            app.close();
+          });
+      until(
+          () -> app.top == null && app.bottom == null && !app.libraryManager.isWorking(),
+          "closed move completed");
+      String movedUri = Uri.fromFile(new File(fixtures, "Collection/Created.txt")).toString();
+      check(
+          "Closing during a move preserves the new resume location",
+          app.prefs.getString("lastUri", "").equals(movedUri));
+      getTargetContext()
+          .startActivity(
+              new android.content.Intent(getTargetContext(), MainActivity.class)
+                  .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+      until(() -> app.top != null && app.bottom != null && !app.loadingFolder, "reopen after move");
+      ui(() -> app.controls.resumeButton.performClick());
+      until(() -> app.mode.equals("editing") && !app.busy, "moved document resume");
+      check(
+          "Moved documents recover their private drafts",
+          app.editor.content().equals("Unsaved text that follows a move"));
+      ui(() -> app.library());
       Library.Entry collection = entry("Collection");
       check(
           "Move control moves a file into its collection",

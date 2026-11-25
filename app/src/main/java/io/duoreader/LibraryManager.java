@@ -20,6 +20,10 @@ public final class LibraryManager {
     return app.controls;
   }
 
+  boolean isWorking() {
+    return working;
+  }
+
   public void createMenu() {
     ui().menu(
             "Create in " + app.folderLabel(),
@@ -96,7 +100,8 @@ public final class LibraryManager {
                                     if (app.current != null
                                         && before.containsValue(app.current.uri))
                                       releaseCurrent(true);
-                                    if (app.folder.equals(parent)) app.loadFolder(parent);
+                                    if (!app.closing && app.folder.equals(parent))
+                                      app.loadFolder(parent);
                                   };
                                 });
                         }));
@@ -111,12 +116,14 @@ public final class LibraryManager {
         () -> {
           ArrayList<Library.Entry> entries = Library.list(app, destination);
           return () -> {
+            if (app.closing || ui() == null) return;
             LinearLayout body = ui().column();
             ui().option(
                     body,
                     "Move here",
                     () -> {
                       ui().dialog.dismiss();
+                      String currentUri = app.current == null ? "" : app.current.uri;
                       perform(
                           "Move",
                           () -> {
@@ -125,7 +132,6 @@ public final class LibraryManager {
                             app.editor.awaitWrites();
                             Library.Entry moved = storage.move(originalParent, source, destination);
                             Map<String, String> after = descendants(moved);
-                            String currentUri = app.current == null ? "" : app.current.uri;
                             String relocatedCurrent = null;
                             SharedPreferences.Editor icons = app.collectionPrefs.edit();
                             for (Map.Entry<String, String> item : before.entrySet()) {
@@ -155,7 +161,9 @@ public final class LibraryManager {
                             icons.commit();
                             String nextCurrent = relocatedCurrent;
                             return () -> {
-                              if (nextCurrent != null) {
+                              if (nextCurrent != null
+                                  && app.current != null
+                                  && app.current.uri.equals(currentUri)) {
                                 String lastName = app.current.name;
                                 releaseCurrent(false);
                                 app.prefs
@@ -166,7 +174,8 @@ public final class LibraryManager {
                                     .putLong("lastSize", 0)
                                     .commit();
                               }
-                              if (app.folder.equals(originalParent)) app.loadFolder(originalParent);
+                              if (!app.closing && app.folder.equals(originalParent))
+                                app.loadFolder(originalParent);
                             };
                           });
                     });
@@ -246,7 +255,7 @@ public final class LibraryManager {
 
   private void selectOnReload(String parent, Library.Entry entry) {
     app.browserPrefs.edit().putString("selected." + Library.id(parent), entry.uri).commit();
-    if (app.folder.equals(parent)) {
+    if (!app.closing && app.folder.equals(parent)) {
       app.selected = null;
       app.loadFolder(parent);
     }
@@ -274,9 +283,8 @@ public final class LibraryManager {
                 () -> {
                   working = false;
                   app.busy = false;
-                  if (app.closing) return;
                   finished.run();
-                  app.changed();
+                  if (!app.closing) app.changed();
                 });
           } catch (Exception error) {
             app.main.post(
