@@ -11,7 +11,7 @@ no launcher dependency.
 - Local folders and collections, covers, previews, and per-book reading progress.
 - Create collections/TXT/Markdown files; move or delete library items. Moves keep
   saved reading data; deletion asks for confirmation.
-- Button-only or smaller-screen touch control; the larger screen ignores touch.
+- Button-only or smaller-screen touch control; larger-screen touch for text editing.
 - Adjustable fonts, size, spacing, margins and brightness; three page colors.
 - Left/justified/right text, density-matched font sizes, and four internal rotations.
 - TXT/Markdown editing with line numbers, soft wrap, shared keyboard, undo/redo,
@@ -40,6 +40,8 @@ Rotation and matching page sizes are in Preferences. Separate font sizes require
 In the editor, **Save** writes the original file; unsaved edits are kept as local drafts.
 The D-pad moves the cursor across characters and wrapped lines. **Select** or the
 **D-pad: Cursor/Keys** button switches to keyboard navigation; **A** selects a key.
+In TXT/Markdown source, long-press text on the larger screen, adjust the selection
+handles, and use the popup to copy, paste, or select all.
 Use **+** to create items and **Manage** for the selected item.
 Bring files from elsewhere with **+ → Import files**. Select up to 64 EPUB,
 TXT, Markdown, CBZ, or CBR files in Android’s picker. Imports go into the current

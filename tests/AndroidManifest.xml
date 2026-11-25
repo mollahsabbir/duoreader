@@ -12,6 +12,7 @@
     <instrumentation android:name="io.duoreader.AlignmentTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.NoteTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.EditorTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
+    <instrumentation android:name="io.duoreader.EditorSelectionTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.StorageTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.LibraryManagementTests" android:targetPackage="io.duoreader" android:functionalTest="true" />
     <instrumentation android:name="io.duoreader.ComicTests" android:targetPackage="io.duoreader" android:functionalTest="true" />

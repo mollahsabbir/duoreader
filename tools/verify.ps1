@@ -45,7 +45,7 @@ $suites = @(
     @('TouchNavigationTests','touch-verification.json'), @('RobustnessTests','robustness-verification.json'),
     @('OrientationProbe','orientation-verification.json'), @('UiBehaviorTests','ui-behavior-verification.json'),
     @('DisplayTests','DisplayTests.json'), @('AlignmentTests','AlignmentTests.json'),
-    @('NoteTests','NoteTests.json'), @('EditorTests','EditorTests.json'),
+    @('NoteTests','NoteTests.json'), @('EditorTests','EditorTests.json'), @('EditorSelectionTests','EditorSelectionTests.json'),
     @('StorageTests','StorageTests.json'), @('LibraryManagementTests','LibraryManagementTests.json'),
     @('ComicTests','ComicTests.json'), @('ImportTests','ImportTests.json'), @('CurlTests','CurlTests.json')
 )

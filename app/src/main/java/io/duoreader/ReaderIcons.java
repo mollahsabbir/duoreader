@@ -13,6 +13,7 @@ public final class ReaderIcons {
     if (label.startsWith("Delete")) return "delete";
     if (label.startsWith("Edit")) return "edit";
     if (label.startsWith("Copy")) return "copy";
+    if (label.startsWith("Paste")) return "paste";
     if (label.contains("dictionary")) return "dictionary";
     if (label.contains("note") || label.contains("passage")) return "note";
     if (label.startsWith("Move")) return "move";
@@ -109,6 +110,18 @@ public final class ReaderIcons {
         p.lineTo(3, 16);
         p.lineTo(5, 16);
         canvas.drawPath(p, paint);
+      } else if (kind.equals("paste")) {
+        canvas.drawRoundRect(5, 4, 20, 22, 1.5f, 1.5f, paint);
+        canvas.drawRoundRect(9, 2, 16, 7, 1, 1, paint);
+        canvas.drawLine(9, 12, 16, 12, paint);
+        canvas.drawLine(9, 16, 16, 16, paint);
+      } else if (kind.equals("select-all")) {
+        paint.setPathEffect(new DashPathEffect(new float[] {2, 2}, 0));
+        canvas.drawRect(2, 2, 22, 22, paint);
+        paint.setPathEffect(null);
+        canvas.drawLine(6, 8, 18, 8, paint);
+        canvas.drawLine(6, 12, 18, 12, paint);
+        canvas.drawLine(6, 16, 18, 16, paint);
       } else if (kind.equals("dictionary")) {
         p.moveTo(12, 6);
         p.cubicTo(8, 3, 4, 4, 2, 5);

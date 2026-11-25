@@ -205,7 +205,20 @@ public final class TextEditor {
     primary = new FrameLayout(owner);
     ReaderUi palette = new ReaderUi(owner, app);
     source = new NumberedText(palette, true);
-    source.setFilters(new InputFilter[] {new InputFilter.LengthFilter(TextDocument.MAX_CHARS)});
+    source.setFilters(
+        new InputFilter[] {
+          (incoming, start, end, target, from, to) -> {
+            for (int i = start; i < end; i++)
+              if (incoming.charAt(i) == '\r')
+                return incoming
+                    .subSequence(start, end)
+                    .toString()
+                    .replace("\r\n", "\n")
+                    .replace('\r', '\n');
+            return null;
+          },
+          new InputFilter.LengthFilter(TextDocument.MAX_CHARS)
+        });
     source.limitLines(
         TextDocument.MAX_LINES,
         () -> {
@@ -214,6 +227,7 @@ public final class TextEditor {
     source.setText(text);
     source.setSelection(Math.min(text.length(), cursor));
     source.setCursorVisible(true);
+    source.enableEditingSelection(palette, primary);
     source.addTextChangedListener(
         new TextWatcher() {
           String removed = "";

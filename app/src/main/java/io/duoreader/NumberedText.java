@@ -2,8 +2,11 @@ package io.duoreader;
 
 import android.graphics.*;
 import android.text.*;
+import android.view.ActionMode;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 
 /** Wrapped, vertically scrolling text with logical line numbers and no system keyboard. */
 public final class NumberedText extends EditText {
@@ -11,6 +14,7 @@ public final class NumberedText extends EditText {
   private final Paint gutterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
   private final ReaderUi ui;
   private int gutter;
+  private EditorSelection selection;
 
   public NumberedText(ReaderUi ui, boolean editable) {
     super(ui.activity);
@@ -99,7 +103,37 @@ public final class NumberedText extends EditText {
   @Override
   protected void onSelectionChanged(int start, int end) {
     super.onSelectionChanged(start, end);
+    if (selection != null) selection.update();
     invalidate();
+  }
+
+  void enableEditingSelection(ReaderUi ui, FrameLayout host) {
+    selection = new EditorSelection(ui, this, host);
+    setHighlightColor(ui.translucent(ui.accent(), 95));
+    setTextClassifier(android.view.textclassifier.TextClassifier.NO_OP);
+  }
+
+  @Override
+  public ActionMode startActionMode(ActionMode.Callback callback, int type) {
+    return selection == null ? super.startActionMode(callback, type) : selection.start(callback);
+  }
+
+  @Override
+  protected void onScrollChanged(int x, int y, int oldX, int oldY) {
+    super.onScrollChanged(x, y, oldX, oldY);
+    if (selection != null) selection.update();
+  }
+
+  @Override
+  protected void onVisibilityChanged(View changed, int visibility) {
+    super.onVisibilityChanged(changed, visibility);
+    if (selection != null && visibility != View.VISIBLE) selection.finish();
+  }
+
+  @Override
+  protected void onDetachedFromWindow() {
+    if (selection != null) selection.finish();
+    super.onDetachedFromWindow();
   }
 
   void limitLines(int maximum, Runnable rejected) {
@@ -117,13 +151,15 @@ public final class NumberedText extends EditText {
   }
 
   public void insert(String text) {
-    int a = Math.max(0, getSelectionStart()), b = Math.max(a, getSelectionEnd());
+    int start = Math.max(0, getSelectionStart()), end = Math.max(0, getSelectionEnd());
+    int a = Math.min(start, end), b = Math.max(start, end), previous = length();
     getText().replace(a, b, text);
-    setSelection(Math.min(getText().length(), a + text.length()));
+    setSelection(a + Math.max(0, length() - (previous - (b - a))));
   }
 
   public void erase() {
-    int a = Math.max(0, getSelectionStart()), b = Math.max(a, getSelectionEnd());
+    int start = Math.max(0, getSelectionStart()), end = Math.max(0, getSelectionEnd());
+    int a = Math.min(start, end), b = Math.max(start, end);
     if (a == b && a > 0) a = Character.offsetByCodePoints(getText(), a, -1);
     getText().delete(a, b);
     setSelection(a);

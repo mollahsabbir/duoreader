@@ -211,7 +211,8 @@ public final class MainActivity extends Activity {
 
   @Override
   public boolean dispatchTouchEvent(android.view.MotionEvent event) {
-    return fallback == null || super.dispatchTouchEvent(event);
+    if (fallback == null && !app.mode.equals("editing")) return true;
+    return super.dispatchTouchEvent(event);
   }
 
   @Override
