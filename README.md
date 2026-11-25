@@ -1,7 +1,7 @@
 # Duo Reader
 
-An offline EPUB reader for Retroid Pocket Duo. Read two consecutive pages in
-portrait while Android stays in landscape. Uses standard Android display APIs;
+An offline reader and text editor for Retroid Pocket Duo. Read two consecutive
+EPUB pages while Android stays in landscape. Uses standard Android display APIs;
 no launcher dependency.
 
 <img src="docs/poster.png" width="540" alt="Duo Reader: reading, dictionary, search, optional matched display sizes, five themes and three page colors">
@@ -11,6 +11,9 @@ no launcher dependency.
 - Local folders and collections, covers, previews, and per-book reading progress.
 - Button-only or smaller-screen touch control; the larger screen ignores touch.
 - Adjustable fonts, size, spacing, margins and brightness; three page colors.
+- Left/justified/right text, density-matched font sizes, and four internal rotations.
+- TXT/Markdown editing with line numbers, soft wrap, shared keyboard, undo/redo,
+  recoverable drafts, and offline Markdown preview on the larger display.
 - Five library themes and customizable collection icons.
 - Synchronized page curls that follow a drag and respond to release speed.
 - Optional matching page sizes, with borders on one pair of sides.
@@ -24,12 +27,14 @@ no launcher dependency.
 1. Download **Duo-Reader.apk** from [Releases](https://github.com/mollahsabbir/duoreader/releases)
    under **Assets** and install it, or build it below.
 2. Open **Preferences → Choose Android folder** and select a folder containing
-   your EPUBs. Subfolders become collections. No books are bundled.
+   your documents. Subfolders become collections. No books are bundled.
 3. Hold the Duo like a book, D-pad at the bottom. Tap the smaller page to show
    controls; long-press text to highlight, copy, annotate or define it. Tap its
    upper-right corner to bookmark. **Library** in the top quick menu returns to browsing.
 
-The opposite grip and matching page sizes are available in Preferences.
+Rotation and matching page sizes are in Preferences. Separate font sizes require
+**Menu → Advanced display settings → Allow different font sizes**.
+In the editor, **Save** writes the original file; unsaved edits are kept as local drafts.
 
 | Reading control | Default action |
 | --- | --- |
@@ -46,8 +51,8 @@ Change reading shortcuts in **Menu → Keybindings**.
 ## Build
 
 Windows, PowerShell 7, JDK 17, Android SDK platform **35** and build-tools
-**35.0.0**. Set `JAVA_HOME` and `ANDROID_SDK_ROOT`; no Gradle or third-party
-Java libraries are required.
+**35.0.0**. Set `JAVA_HOME` and `ANDROID_SDK_ROOT`; no Gradle is required.
+The build fetches checksum-pinned parser dependencies into `.local/dependencies`.
 
 ```powershell
 .\build.ps1                 # Signed APK in dist/
@@ -73,7 +78,9 @@ service calls and runs offline.
 
 ## Limits and licensing
 
-Supports unencrypted, reflowable EPUB 2/3. No PDF, DRM, full publisher CSS,
+Supports unencrypted, reflowable EPUB 2/3 and UTF-8/BOM-marked UTF-16 text.
+Text editing is limited to 2 MB / 524,288 characters; Markdown preview to 262,144
+characters. Drafts autosave after a short typing pause. No PDF, DRM, full publisher CSS,
 embedded fonts, scripting, or fixed-layout support. Tested on Retroid Pocket
 Duo; other dual-display devices may differ. Reading data stays local and is
 removed by clearing app data or uninstalling; no sync or export is provided.

@@ -5,6 +5,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\tools\AndroidTools.ps1"
+. "$PSScriptRoot\tools\Dependencies.ps1"
+$dependencies = @(Resolve-ReaderDependencies -ProjectRoot $PSScriptRoot)
 $toolchain = Resolve-AndroidToolchain -SdkRoot $SdkRoot -JavaHome $JavaHome
 $buildDir = Join-Path $PSScriptRoot 'build'
 foreach ($name in @('generated', 'classes', 'dex', 'attributions')) {
@@ -24,11 +26,11 @@ if ($Debug) { $link += '--debug-mode' }
 & "$($toolchain.BuildTools)\aapt2.exe" @link
 Assert-NativeCommand 'Link resources'
 $sources = @(Get-ChildItem -LiteralPath "$PSScriptRoot\app\src\main\java", "$buildDir\generated" -Filter '*.java' -Recurse | ForEach-Object FullName)
-& "$($toolchain.JavaBin)\javac.exe" -encoding UTF-8 --release 8 -classpath $toolchain.AndroidJar -d "$buildDir\classes" @sources
+& "$($toolchain.JavaBin)\javac.exe" -encoding UTF-8 --release 8 -classpath ((@($toolchain.AndroidJar) + $dependencies) -join ';') -d "$buildDir\classes" @sources
 Assert-NativeCommand 'Compile Java'
 & "$($toolchain.JavaBin)\jar.exe" cf "$buildDir\classes.jar" -C "$buildDir\classes" .
 Assert-NativeCommand 'Package classes'
-& "$($toolchain.JavaBin)\java.exe" -cp "$($toolchain.BuildTools)\lib\d8.jar" com.android.tools.r8.D8 --lib $toolchain.AndroidJar --min-api 28 --output "$buildDir\dex" "$buildDir\classes.jar"
+& "$($toolchain.JavaBin)\java.exe" -cp "$($toolchain.BuildTools)\lib\d8.jar" com.android.tools.r8.D8 --lib $toolchain.AndroidJar --min-api 28 --output "$buildDir\dex" "$buildDir\classes.jar" @dependencies
 Assert-NativeCommand 'Compile dex'
 & "$($toolchain.JavaBin)\jar.exe" uf "$buildDir\base.apk" -C "$buildDir\dex" classes.dex
 Assert-NativeCommand 'Package dex'

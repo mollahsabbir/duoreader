@@ -36,6 +36,7 @@ public final class ReaderApp extends Application {
   public final PairedTasks pairedTasks = new PairedTasks(this);
   public final Paginator paginator = new Paginator(this);
   public final DisplayTypography typography = new DisplayTypography(this);
+  public final TextEditor editor = new TextEditor(this);
   public final EnglishDictionary dictionary = new EnglishDictionary(this);
   public final BookSearch searchService = new BookSearch();
   public final ThreadPoolExecutor lookups = TaskExecutors.create("reader-lookups", 1);
@@ -341,7 +342,7 @@ public final class ReaderApp extends Application {
                         error.isEmpty()
                             ? (result.size()
                                 + (result.size() == 1 ? " item" : " items")
-                                + " · EPUB library")
+                                + " · library")
                             : error;
                     changed();
                   });
@@ -408,6 +409,10 @@ public final class ReaderApp extends Application {
         secondWidth = bottomWidth,
         imageHeight = Math.max(60, Math.min(topHeight, bottomHeight) - 20);
     changed();
+    if (DocumentFormat.of(opened.name).editable()) {
+      openTask = editor.open(opened, generation);
+      return;
+    }
     openTask =
         worker.submit(
             () -> {
@@ -453,6 +458,7 @@ public final class ReaderApp extends Application {
                           book.close();
                         } catch (Exception ignored) {
                         }
+                      editor.clear();
                       book = epub;
                       current = opened;
                       selected = opened;
@@ -504,6 +510,17 @@ public final class ReaderApp extends Application {
       restoring = true;
       retryResume();
     }
+  }
+
+  void openFailed(int generation, Exception error) {
+    if (generation != openGeneration || closing) return;
+    busy = false;
+    restoring = false;
+    status = "Could not open this document: " + error.getMessage();
+    resumePending = false;
+    save();
+    changed();
+    if (controls != null) controls.message("Cannot open document", status);
   }
 
   private void retryResume() {
@@ -726,6 +743,12 @@ public final class ReaderApp extends Application {
   }
 
   public void resume() {
+    if (editor.active()) {
+      mode = "editing";
+      save();
+      changed();
+      return;
+    }
     if (book != null) {
       mode = "reading";
       save();
@@ -769,8 +792,12 @@ public final class ReaderApp extends Application {
 
   public void save() {
     if (!ready || restoring || (resumePending && current == null)) return;
+    if (editor.active()) {
+      editor.flush();
+      position = new Location(0, editor.cursor());
+    }
     android.content.SharedPreferences.Editor e =
-        prefs.edit().putBoolean("reading", mode.equals("reading"));
+        prefs.edit().putBoolean("reading", !mode.equals("library"));
     if (current != null)
       e.putString(bookKey() + "uri", current.uri)
           .putString("lastUri", current.uri)

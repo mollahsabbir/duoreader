@@ -147,6 +147,10 @@ public final class LibraryRepository {
 
   private Result read(Library.Entry entry, boolean hero) {
     Result result = new Result();
+    if (DocumentFormat.of(entry.name).editable()) {
+      result.metadata = new Metadata(entry.title, "", "", false);
+      return result;
+    }
     try (Epub book = new Epub(Library.cached(app, entry.uri, entry.modified, entry.size))) {
       if (Thread.currentThread().isInterrupted()) return result;
       if (!hero)

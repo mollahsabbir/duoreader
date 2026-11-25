@@ -16,12 +16,22 @@ public final class MainActivity extends Activity {
   FrameLayout pageHost;
   private PortraitHost orientationHost;
   private ReaderUi fallback;
+  private View documentPane;
   private boolean foreground;
   private int attachAttempts;
   private final Runnable attachLower = this::attachBottom;
   private final Runnable refresh =
       () -> {
         applyViewport();
+        if (pageHost != null) {
+          View next = app.mode.equals("editing") ? app.editor.primary(this) : null;
+          if (documentPane != next) {
+            if (documentPane != null) pageHost.removeView(documentPane);
+            documentPane = next;
+            if (next != null) pageHost.addView(next, new FrameLayout.LayoutParams(-1, -1));
+          }
+          paper.setVisibility(next == null ? View.VISIBLE : View.GONE);
+        }
         if (paper != null) paper.appearance();
         if (fallback != null) fallback.refresh();
       };
@@ -84,11 +94,17 @@ public final class MainActivity extends Activity {
       if (other.widthPixels > 0) {
         boolean swaps = ReadingOrientation.swapsAxes(app.rotation);
         float referenceWidth =
-            (swaps ? Math.min(other.widthPixels, other.heightPixels) : Math.max(other.widthPixels, other.heightPixels))
-                * own.xdpi / Math.max(1, other.xdpi);
+            (swaps
+                    ? Math.min(other.widthPixels, other.heightPixels)
+                    : Math.max(other.widthPixels, other.heightPixels))
+                * own.xdpi
+                / Math.max(1, other.xdpi);
         float referenceHeight =
-            (swaps ? Math.max(other.widthPixels, other.heightPixels) : Math.min(other.widthPixels, other.heightPixels))
-                * own.ydpi / Math.max(1, other.ydpi);
+            (swaps
+                    ? Math.max(other.widthPixels, other.heightPixels)
+                    : Math.min(other.widthPixels, other.heightPixels))
+                * own.ydpi
+                / Math.max(1, other.ydpi);
         float fit =
             Math.min(pageHost.getWidth() / referenceWidth, pageHost.getHeight() / referenceHeight);
         width = Math.min(pageHost.getWidth(), Math.round(referenceWidth * fit));

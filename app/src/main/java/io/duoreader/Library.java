@@ -35,7 +35,7 @@ public final class Library {
     public Entry(String u, String n, boolean f) {
       uri = u;
       name = n;
-      title = n.replaceFirst("(?i)\\.epub$", "");
+      title = n.replaceFirst("(?i)\\.(epub|txt|md|markdown|cbz|cbr)$", "");
       folder = f;
       long id = 0xcbf29ce484222325L;
       for (int i = 0; i < u.length(); i++) {
@@ -59,8 +59,7 @@ public final class Library {
       File[] files = new File(uri.getPath()).listFiles();
       if (files == null) throw new IOException("This folder is unavailable.");
       for (File f : files)
-        if (!f.isHidden()
-            && (f.isDirectory() || f.getName().toLowerCase(Locale.ROOT).endsWith(".epub"))) {
+        if (!f.isHidden() && (f.isDirectory() || DocumentFormat.supported(f.getName()))) {
           if (cancellation != null) cancellation.throwIfCanceled();
           Entry e = new Entry(Uri.fromFile(f).toString(), f.getName(), f.isDirectory());
           e.modified = f.lastModified();
@@ -89,7 +88,7 @@ public final class Library {
           if (name == null || name.isEmpty() || name.startsWith(".") || c.getString(0) == null)
             continue;
           boolean folder = DocumentsContract.Document.MIME_TYPE_DIR.equals(c.getString(2));
-          if (folder || name.toLowerCase(Locale.ROOT).endsWith(".epub")) {
+          if (folder || DocumentFormat.supported(name)) {
             Entry e =
                 new Entry(
                     DocumentsContract.buildDocumentUriUsingTree(uri, c.getString(0)).toString(),
@@ -120,6 +119,10 @@ public final class Library {
 
   public static void metadata(Context c, Entry e) {
     if (e.folder || e.loaded) return;
+    if (DocumentFormat.of(e.name).editable()) {
+      e.loaded = true;
+      return;
+    }
     try (Epub book = new Epub(cached(c, e.uri, e.modified, e.size))) {
       e.title = book.title.equals("Untitled") ? e.title : book.title;
       e.author = book.author;
@@ -162,6 +165,13 @@ public final class Library {
           if (e.folder) p.collections++;
           else p.books++;
         p.label = "IN THIS COLLECTION";
+      } else if (DocumentFormat.of(entry.name).editable()) {
+        p.label =
+            DocumentFormat.of(entry.name) == DocumentFormat.MARKDOWN
+                ? "MARKDOWN DOCUMENT"
+                : "TEXT DOCUMENT";
+        p.text = TextDocument.load(context, entry.uri).text;
+        if (p.text.length() > 2400) p.text = p.text.substring(0, 2400) + "…";
       } else
         try (Epub epub = new Epub(cached(context, entry.uri, entry.modified, entry.size))) {
           String description = clean(epub.description, 2400);

@@ -1,5 +1,12 @@
 # Third-party notices
 
+## Markdown parser
+
+CommonMark Java 0.33.0, Copyright 2015 Robin Stocker. BSD 2-Clause license.
+Used for offline Markdown previews. The [full license](app/src/main/assets/licenses/commonmark.txt)
+is included in the source and APK. Build dependencies are pinned with SHA-256 checksums.
+Source: [commonmark-java](https://github.com/commonmark/commonmark-java).
+
 ## Offline dictionary
 
 WordNet 3.0, Copyright 2006 Princeton University. All rights reserved.

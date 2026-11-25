@@ -75,8 +75,8 @@ final class BookListAdapter extends BaseAdapter {
         entry.folder
             ? "Collection"
             : !entry.error.isEmpty()
-                ? "Unreadable EPUB · open for details"
-                : entry.author.isEmpty() ? "EPUB" : entry.author);
+                ? "Unreadable document · open for details"
+                : entry.author.isEmpty() ? DocumentFormat.of(entry.name).name() : entry.author);
     holder.progress.setVisibility(entry.folder ? View.GONE : View.VISIBLE);
     if (!entry.folder) {
       int percent = ui.app.prefs.getInt(ui.app.key(entry.uri) + "percent", 0);

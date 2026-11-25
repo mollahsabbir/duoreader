@@ -82,6 +82,24 @@ public final class NumberedText extends EditText {
             getTotalPaddingTop() + layout.getLineBaseline(line),
             gutterPaint);
     }
+    if (getKeyListener() != null && !hasFocus() && getSelectionStart() >= 0) {
+      int caret = Math.min(length(), getSelectionStart()), line = layout.getLineForOffset(caret);
+      float x = getTotalPaddingLeft() + layout.getPrimaryHorizontal(caret);
+      gutterPaint.setColor(ui.accent());
+      gutterPaint.setStrokeWidth(Math.max(2, ui.dp(1)));
+      canvas.drawLine(
+          x,
+          getTotalPaddingTop() + layout.getLineTop(line),
+          x,
+          getTotalPaddingTop() + layout.getLineBottom(line),
+          gutterPaint);
+    }
+  }
+
+  @Override
+  protected void onSelectionChanged(int start, int end) {
+    super.onSelectionChanged(start, end);
+    invalidate();
   }
 
   public void insert(String text) {

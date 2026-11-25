@@ -35,6 +35,7 @@ public final class ReaderUi {
   private PortraitHost dialogHost;
   private java.util.concurrent.Future<?> lookupTask;
   private Epub displayedBook;
+  private Library.Entry displayedDocument;
 
   private void cancelLookup() {
     if (lookupTask != null) {
@@ -195,13 +196,15 @@ public final class ReaderUi {
   }
 
   public void refresh() {
-    if (!builtMode.equals(app.mode) || displayedBook != app.book) {
+    boolean documentChanged = !app.mode.equals("library") && displayedDocument != app.current;
+    if (!builtMode.equals(app.mode) || displayedBook != app.book || documentChanged) {
       feedback.dismiss();
       cancelLookup();
       if (dialog != null) dialog.dismiss();
     }
     displayedBook = app.book;
-    if (!builtMode.equals(app.mode) || builtTheme != app.theme) {
+    displayedDocument = app.current;
+    if (!builtMode.equals(app.mode) || builtTheme != app.theme || documentChanged) {
       feedback.dismiss();
       app.main.removeCallbacks(autoHide);
       root.removeAllViews();
@@ -220,6 +223,7 @@ public final class ReaderUi {
       builtTheme = app.theme;
       root.setBackgroundColor(shell());
       if (app.mode.equals("reading") && app.book != null) buildReader();
+      else if (app.mode.equals("editing")) app.editor.buildControls(this);
       else buildLibrary();
     }
     if (paper != null) {
@@ -336,7 +340,7 @@ public final class ReaderUi {
     body.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
     TextView empty =
         text(
-            "No EPUBs here yet.\n"
+            "No documents here yet.\n"
                 + "Choose your books folder in Preferences,\n"
                 + "or open a collection above.",
             14,
@@ -1722,6 +1726,7 @@ public final class ReaderUi {
         new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
             .addFlags(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
                     | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
     intent.putExtra(
@@ -1878,6 +1883,7 @@ public final class ReaderUi {
   }
 
   public boolean handleKey(KeyEvent event) {
+    if (app.mode.equals("editing") && dialog == null) return app.editor.handle(event);
     int key = event.getKeyCode();
     if (dialog != null && dialog.isShowing()) {
       // Gamepad events may be routed to the upper activity; deliver to the lower dialog.
@@ -2028,7 +2034,7 @@ public final class ReaderUi {
       if (paper != null) paper.requestFocus();
       return;
     }
-    if (app.mode.equals("reading")) {
+    if (app.mode.equals("reading") || app.mode.equals("editing")) {
       app.library();
       return;
     }
