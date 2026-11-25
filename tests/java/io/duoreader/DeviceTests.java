@@ -176,7 +176,7 @@ public final class DeviceTests extends Instrumentation {
               && app.controls.root.getHeight() > app.controls.root.getWidth());
       check(
           "Both Android displays stay landscape while the content follows the bottom D-pad grip",
-          app.dpadBottom
+          app.rotation == 90
               && app.top.getDisplay().getRotation() == Surface.ROTATION_90
               && app.bottom.getDisplay().getRotation() == Surface.ROTATION_0);
       check(
@@ -1073,7 +1073,7 @@ public final class DeviceTests extends Instrumentation {
         "A diagonal drag carries its angle and origin into the curl",
         app.controls.paper.curlTilt > .1f
             && Math.abs(app.controls.paper.curlOriginY - .22f) < .01f
-            && Math.abs(app.turns.lowerProgress - .5f) < .01f);
+            && Math.abs(app.turns.lowerProgress - .25f) < .01f);
     ui(() -> app.turns.release(false));
     settled();
     ui(
@@ -1116,7 +1116,8 @@ public final class DeviceTests extends Instrumentation {
     child.mkdirs();
     File epub = new File(child, "Example.epub"),
         second = new File(root, "Second.epub"),
-        ignore = new File(root, "Ignore.txt");
+        ignore = new File(root, "Ignore.pdf");
+    new File(root, "Ignore.txt").delete();
     try (InputStream in =
             new FileInputStream(Library.cached(app, sample.uri, sample.modified, sample.size));
         OutputStream out = new FileOutputStream(epub)) {

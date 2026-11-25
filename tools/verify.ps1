@@ -3,7 +3,8 @@ param(
     [string]$JavaHome = $env:JAVA_HOME,
     [switch]$Run,
     [string]$Serial,
-    [string]$Adb
+    [string]$Adb,
+    [string[]]$Suite
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -42,8 +43,17 @@ Assert-NativeCommand 'Install instrumentation'
 $suites = @(
     @('DeviceTests','verification.json'), @('LibraryTests','library-verification.json'),
     @('TouchNavigationTests','touch-verification.json'), @('RobustnessTests','robustness-verification.json'),
-    @('OrientationProbe','orientation-verification.json'), @('UiBehaviorTests','ui-behavior-verification.json')
+    @('OrientationProbe','orientation-verification.json'), @('UiBehaviorTests','ui-behavior-verification.json'),
+    @('DisplayTests','DisplayTests.json'), @('AlignmentTests','AlignmentTests.json'),
+    @('NoteTests','NoteTests.json'), @('EditorTests','EditorTests.json'), @('EditorSelectionTests','EditorSelectionTests.json'),
+    @('StorageTests','StorageTests.json'), @('LibraryManagementTests','LibraryManagementTests.json'),
+    @('ComicTests','ComicTests.json'), @('ImportTests','ImportTests.json'), @('CurlTests','CurlTests.json')
 )
+if ($Suite) {
+    $known = @($suites | ForEach-Object { $_[0] })
+    foreach ($name in $Suite) { if ($name -notin $known) { throw "Unknown suite: $name. Available: $($known -join ', ')" } }
+    $suites = @($suites | Where-Object { $_[0] -in $Suite })
+}
 $results = Join-Path $buildDir 'test-results'
 New-Item -ItemType Directory -Force -Path $results | Out-Null
 foreach ($suite in $suites) {

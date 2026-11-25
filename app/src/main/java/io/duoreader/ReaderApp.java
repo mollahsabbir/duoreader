@@ -35,6 +35,10 @@ public final class ReaderApp extends Application {
   public final SpreadTurn turns = new SpreadTurn(this);
   public final PairedTasks pairedTasks = new PairedTasks(this);
   public final Paginator paginator = new Paginator(this);
+  public final DisplayTypography typography = new DisplayTypography(this);
+  public final TextEditor editor = new TextEditor(this);
+  public final LibraryManager libraryManager = new LibraryManager(this);
+  public final ComicReader comics = new ComicReader(this);
   public final EnglishDictionary dictionary = new EnglishDictionary(this);
   public final BookSearch searchService = new BookSearch();
   public final ThreadPoolExecutor lookups = TaskExecutors.create("reader-lookups", 1);
@@ -61,7 +65,11 @@ public final class ReaderApp extends Application {
   public int topWidth = 420, topHeight = 600, bottomWidth = 420, bottomHeight = 450;
   public int theme = 2, paper = 1, font = 0, fontSize = 18, margin = 24;
   public float spacing = 1.4f, brightness = -1f;
-  public boolean animate = true, awake = true, matchScreens = false, dpadBottom = true;
+  public boolean animate = true, awake = true, matchScreens = false;
+  public int rotation = 90;
+  public boolean allowDifferentFontSizes;
+  public int upperFontSize = 18, lowerFontSize = 18;
+  public int alignment;
   public JSONArray marks = new JSONArray();
   public String searchTerm = "";
   public static final String[] THEMES = {"Black", "16Bit", "GC", "Ice Blue", "Clear Purple"};
@@ -120,18 +128,28 @@ public final class ReaderApp extends Application {
     paper = prefs.getInt("paper", 1);
     font = prefs.getInt("font", 0);
     fontSize = prefs.getInt("size", 18);
+    alignment = prefs.getInt("alignment", 0);
+    allowDifferentFontSizes = prefs.getBoolean("allowDifferentFontSizes", false);
+    upperFontSize = prefs.getInt("upperFontSize", fontSize);
+    lowerFontSize = prefs.getInt("lowerFontSize", fontSize);
     margin = prefs.getInt("margin", 24);
     spacing = prefs.getFloat("spacing", 1.4f);
     animate = true;
     awake = prefs.getBoolean("awake", true);
     brightness = prefs.getFloat("brightness", -1f);
     matchScreens = prefs.getBoolean("matchScreens", false);
-    dpadBottom = prefs.getBoolean("dpadBottom", true);
+    rotation = prefs.getInt("rotation", prefs.getBoolean("dpadBottom", true) ? 90 : 270);
     restoring = prefs.getBoolean("reading", false);
     resumePending = restoring;
     ReaderSettings.sanitize(this);
+    typography.refresh();
     worker.execute(
         () -> {
+          try {
+            LibraryImporter.recover(this);
+          } catch (Exception error) {
+            Log.w("DuoReader", "Interrupted import cleanup pending", error);
+          }
           String defaultRoot = Uri.fromFile(Library.appDirectory(this)).toString();
           main.post(
               () -> {
@@ -263,6 +281,17 @@ public final class ReaderApp extends Application {
             });
   }
 
+  void invalidatePreview(String uri) {
+    previewCache.entrySet().removeIf(entry -> entry.getKey().startsWith(uri + ":"));
+    if (selected != null && selected.uri.equals(uri)) {
+      ++previewGeneration;
+      TaskExecutors.cancel(previewTask, previews);
+      selectedPreview = null;
+      previewLoading = false;
+      if (mode.equals("library")) requestPreview(selected);
+    }
+  }
+
   public String collectionIcon(String uri) {
     return CollectionIcons.valid(collectionPrefs.getString("icon." + Library.id(uri), "folder"));
   }
@@ -331,7 +360,7 @@ public final class ReaderApp extends Application {
                         error.isEmpty()
                             ? (result.size()
                                 + (result.size() == 1 ? " item" : " items")
-                                + " · EPUB library")
+                                + " · library")
                             : error;
                     changed();
                   });
@@ -380,7 +409,7 @@ public final class ReaderApp extends Application {
   }
 
   public void open(Library.Entry entry) {
-    if (busy || closing) return;
+    if (busy || closing || libraryManager.isWorking()) return;
     turns.cancel();
     libraryRepository.cancelRequests();
     TaskExecutors.cancel(previewTask, previews);
@@ -398,6 +427,14 @@ public final class ReaderApp extends Application {
         secondWidth = bottomWidth,
         imageHeight = Math.max(60, Math.min(topHeight, bottomHeight) - 20);
     changed();
+    if (DocumentFormat.of(opened.name).editable()) {
+      openTask = editor.open(opened, generation);
+      return;
+    }
+    if (DocumentFormat.of(opened.name).comic()) {
+      openTask = comics.open(opened, generation);
+      return;
+    }
     openTask =
         worker.submit(
             () -> {
@@ -443,6 +480,8 @@ public final class ReaderApp extends Application {
                           book.close();
                         } catch (Exception ignored) {
                         }
+                      editor.clear();
+                      comics.clear();
                       book = epub;
                       current = opened;
                       selected = opened;
@@ -496,6 +535,17 @@ public final class ReaderApp extends Application {
     }
   }
 
+  void openFailed(int generation, Exception error) {
+    if (generation != openGeneration || closing) return;
+    busy = false;
+    restoring = false;
+    status = "Could not open this document: " + error.getMessage();
+    resumePending = false;
+    save();
+    changed();
+    if (controls != null) controls.message("Cannot open document", status);
+  }
+
   private void retryResume() {
     if (!resumePending || busy || current != null) return;
     String uri = prefs.getString("lastUri", "");
@@ -524,15 +574,23 @@ public final class ReaderApp extends Application {
   }
 
   public TextPaint textPaint() {
+    return textPaint(false);
+  }
+
+  public TextPaint textPaint(boolean lower) {
     TextPaint p = new TextPaint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     p.setTypeface(typeface());
-    p.setTextSize(fontSize * getResources().getDisplayMetrics().scaledDensity);
+    p.setTextSize(typography.pixels(lower));
     p.setColor(ink());
     return p;
   }
 
   public Page page(Location location, int width, int height) throws IOException {
-    return paginator.page(location, width, height);
+    return page(location, width, height, false);
+  }
+
+  public Page page(Location location, int width, int height, boolean lower) throws IOException {
+    return paginator.page(location, width, height, lower);
   }
 
   public boolean end(Location loc) {
@@ -554,7 +612,7 @@ public final class ReaderApp extends Application {
       topPage = page(position, topWidth, topHeight);
       position = topPage.start;
       paginator.rememberSpread(position);
-      bottomPage = end(topPage.next) ? null : page(topPage.next, bottomWidth, bottomHeight);
+      bottomPage = end(topPage.next) ? null : page(topPage.next, bottomWidth, bottomHeight, true);
     } catch (Exception e) {
       status = "Page error: " + e.getMessage();
       Log.e("DuoReader", "Pagination", e);
@@ -650,6 +708,7 @@ public final class ReaderApp extends Application {
 
   public void library() {
     turns.cancel();
+    comics.suspend();
     resumePending = false;
     restoring = false;
     cancelOpen();
@@ -688,6 +747,7 @@ public final class ReaderApp extends Application {
 
   public void close() {
     turns.cancel();
+    comics.suspend();
     save();
     libraryRepository.cancelRequests();
     closing = true;
@@ -708,6 +768,19 @@ public final class ReaderApp extends Application {
   }
 
   public void resume() {
+    if (comics.active()) {
+      mode = "comic";
+      save();
+      changed();
+      comics.resume();
+      return;
+    }
+    if (editor.active()) {
+      mode = "editing";
+      save();
+      changed();
+      return;
+    }
     if (book != null) {
       mode = "reading";
       save();
@@ -731,6 +804,7 @@ public final class ReaderApp extends Application {
   }
 
   public int progressPercent(Location location) {
+    if (comics.active()) return comics.progress();
     if (book == null) return 0;
     float fraction = 0;
     try {
@@ -751,8 +825,13 @@ public final class ReaderApp extends Application {
 
   public void save() {
     if (!ready || restoring || (resumePending && current == null)) return;
+    if (editor.active()) {
+      editor.flush();
+      position = new Location(0, editor.cursor());
+    }
     android.content.SharedPreferences.Editor e =
-        prefs.edit().putBoolean("reading", mode.equals("reading"));
+        prefs.edit().putBoolean("reading", !mode.equals("library"));
+    if (comics.active()) e.putInt(bookKey() + "comicPage", comics.index());
     if (current != null)
       e.putString(bookKey() + "uri", current.uri)
           .putString("lastUri", current.uri)
@@ -791,6 +870,7 @@ public final class ReaderApp extends Application {
             }
           });
       libraryRepository.trim();
+      comics.trim();
       if (top != null && top.paper != null) top.paper.releaseTurnBuffers();
       if (controls != null && controls.paper != null) controls.paper.releaseTurnBuffers();
     }
@@ -799,6 +879,7 @@ public final class ReaderApp extends Application {
 
   public void appearance() {
     ReaderSettings.sanitize(this);
+    typography.refresh();
     turns.cancel();
     prefs
         .edit()
@@ -806,17 +887,23 @@ public final class ReaderApp extends Application {
         .putInt("paper", paper)
         .putInt("font", font)
         .putInt("size", fontSize)
+        .putInt("alignment", alignment)
+        .putBoolean("allowDifferentFontSizes", allowDifferentFontSizes)
+        .putInt("upperFontSize", upperFontSize)
+        .putInt("lowerFontSize", lowerFontSize)
         .putInt("margin", margin)
         .putFloat("spacing", spacing)
         .putBoolean("animate", animate)
         .putBoolean("awake", awake)
         .putFloat("brightness", brightness)
         .putBoolean("matchScreens", matchScreens)
-        .putBoolean("dpadBottom", dpadBottom)
+        .putInt("rotation", rotation)
+        .remove("dpadBottom")
         .apply();
     if (mode.equals("reading")) paginate();
     save();
     changed();
+    if (controls != null) controls.updateDialogOrientation();
     if (top != null) top.windowSettings();
     if (bottom != null) bottom.windowSettings();
   }

@@ -45,6 +45,12 @@ public final class Paginator {
             + ":"
             + app.fontSize
             + ":"
+            + app.alignment
+            + ":"
+            + app.typography.pixels(false)
+            + ":"
+            + app.typography.pixels(true)
+            + ":"
             + app.spacing
             + ":"
             + app.getResources().getDisplayMetrics().scaledDensity
@@ -79,6 +85,11 @@ public final class Paginator {
 
   public ReaderApp.Page page(ReaderApp.Location requested, int width, int height)
       throws IOException {
+    return page(requested, width, height, false);
+  }
+
+  public ReaderApp.Page page(ReaderApp.Location requested, int width, int height, boolean lower)
+      throws IOException {
     if (app.book == null) return null;
     configure();
     width = Math.max(40, width);
@@ -91,10 +102,10 @@ public final class Paginator {
         && start < source.length()
         && Character.isLowSurrogate(source.charAt(start))
         && Character.isHighSurrogate(source.charAt(start - 1))) start--;
-    String key = chapter + ":" + start + ":" + width + ":" + height;
+    String key = chapter + ":" + start + ":" + width + ":" + height + ":" + lower;
     ReaderApp.Page cached = pages.get(key);
     if (cached != null) return cached;
-    TextPaint paint = app.textPaint();
+    TextPaint paint = app.textPaint(lower);
     int window =
         Math.min(
             MAX_WINDOW,
@@ -169,6 +180,12 @@ public final class Paginator {
         .setMaxLines(maxLines)
         .setIncludePad(false)
         .setLineSpacing(0, app.spacing)
+        .setAlignment(
+            app.alignment == 2 ? Layout.Alignment.ALIGN_OPPOSITE : Layout.Alignment.ALIGN_NORMAL)
+        .setJustificationMode(
+            app.alignment == 1
+                ? Layout.JUSTIFICATION_MODE_INTER_WORD
+                : Layout.JUSTIFICATION_MODE_NONE)
         .setBreakStrategy(Layout.BREAK_STRATEGY_HIGH_QUALITY)
         .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NORMAL)
         .build();
@@ -235,7 +252,7 @@ public final class Paginator {
         rememberSpread(cursor);
         ReaderApp.Page first = page(cursor, app.topWidth, app.topHeight);
         if (app.end(first.next)) break;
-        ReaderApp.Page second = page(first.next, app.bottomWidth, app.bottomHeight);
+        ReaderApp.Page second = page(first.next, app.bottomWidth, app.bottomHeight, true);
         ReaderApp.Location next = second.next;
         if (next.equals(cursor)) break;
         cursor = next;

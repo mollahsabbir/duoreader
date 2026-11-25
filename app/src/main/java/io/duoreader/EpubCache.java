@@ -17,26 +17,34 @@ public final class EpubCache {
 
   public static File resolve(Context context, String source, long modified, long size)
       throws IOException {
+    return resolve(context, source, modified, size, MAX_BYTES, "epub");
+  }
+
+  static File resolve(Context context, String source, long modified, long size, long limit, String format)
+      throws IOException {
     Uri uri = Uri.parse(source);
     if ("file".equals(uri.getScheme())) {
       File file = new File(uri.getPath());
-      if (!file.isFile()) throw new FileNotFoundException("This EPUB is no longer available");
-      if (file.length() > MAX_BYTES) throw new IOException("EPUB exceeds 200 MB");
+      if (!file.isFile()) throw new FileNotFoundException("This document is no longer available");
+      if (file.length() > limit) throw new IOException("Document exceeds " + limit / 1024 / 1024 + " MB");
       return file;
     }
     String identity = Library.id(source + "\n" + modified + "\n" + size);
-    File destination = new File(context.getCacheDir(), "book-" + identity + ".epub");
+    File destination = new File(context.getCacheDir(), "book-" + identity + "." + format);
     synchronized (LOCKS[(identity.hashCode() & Integer.MAX_VALUE) % LOCKS.length]) {
       if (destination.isFile() && destination.length() > 0) return destination;
+      if (size > limit) throw new IOException("Document exceeds " + limit / 1024 / 1024 + " MB");
+      if (size > 0 && context.getCacheDir().getUsableSpace() < size + 32L * 1024 * 1024)
+        throw new IOException("Not enough storage to cache this document");
       File temporary = File.createTempFile("epub-", ".part", context.getCacheDir());
       try {
         try (InputStream input = context.getContentResolver().openInputStream(uri);
             FileOutputStream output = new FileOutputStream(temporary)) {
-          if (input == null) throw new FileNotFoundException("This EPUB is no longer available");
-          copy(input, output, MAX_BYTES);
+          if (input == null) throw new FileNotFoundException("This document is no longer available");
+          copy(input, output, limit);
           output.getFD().sync();
         }
-        if (!temporary.renameTo(destination)) throw new IOException("Cannot cache this EPUB");
+        if (!temporary.renameTo(destination)) throw new IOException("Cannot cache this document");
         return destination;
       } finally {
         if (temporary.exists()) temporary.delete();
@@ -52,7 +60,7 @@ public final class EpubCache {
       if (Thread.currentThread().isInterrupted())
         throw new InterruptedIOException("Copy cancelled");
       total += count;
-      if (total > limit) throw new IOException("EPUB exceeds 200 MB");
+      if (total > limit) throw new IOException("Document exceeds " + limit / 1024 / 1024 + " MB");
       output.write(buffer, 0, count);
     }
   }

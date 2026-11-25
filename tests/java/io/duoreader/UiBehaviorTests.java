@@ -172,13 +172,13 @@ public final class UiBehaviorTests extends Instrumentation {
     check("Closing a dialog removes its pending feedback", ui.feedback.message == null);
     ui(
         () -> {
-          app.dpadBottom = false;
+          app.rotation = 270;
           app.appearance();
           ui.toast("Opposite grip");
         });
     until(
         () ->
-            ui.root.getRotation() == -90
+            ui.root.getRotation() == 270
                 && ui.feedback.message != null
                 && ui.feedback.message.getWidth() > 0
                 && ui.feedback.message.getAlpha() > .99f,
@@ -187,7 +187,7 @@ public final class UiBehaviorTests extends Instrumentation {
         "Feedback also follows the opposite portrait grip", aligned(ui.feedback.message, ui.paper));
     ui(
         () -> {
-          app.dpadBottom = true;
+          app.rotation = 90;
           app.appearance();
           ui.toast("Library feedback");
           app.library();
@@ -278,7 +278,7 @@ public final class UiBehaviorTests extends Instrumentation {
             app.paper = 1;
             app.margin = 24;
             app.matchScreens = false;
-            app.dpadBottom = true;
+            app.rotation = 90;
             app.appearance();
             app.open(sample);
           });

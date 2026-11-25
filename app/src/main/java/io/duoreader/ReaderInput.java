@@ -38,7 +38,7 @@ public final class ReaderInput {
     }
   }
 
-  public static KeyEvent orient(KeyEvent event, boolean dpadBottom) {
+  public static KeyEvent orient(KeyEvent event, int rotation) {
     int source = event.getSource();
     if (event instanceof ScreenKey) return event;
     boolean controller =
@@ -49,37 +49,10 @@ public final class ReaderInput {
       controller = device.getName().contains("Retroid Pocket Controller");
     if (!controller) return event;
     int key = event.getKeyCode(), mapped = key;
-    if (dpadBottom) {
-      switch (key) {
-        case KeyEvent.KEYCODE_DPAD_UP:
-          mapped = KeyEvent.KEYCODE_DPAD_LEFT;
-          break;
-        case KeyEvent.KEYCODE_DPAD_RIGHT:
-          mapped = KeyEvent.KEYCODE_DPAD_UP;
-          break;
-        case KeyEvent.KEYCODE_DPAD_DOWN:
-          mapped = KeyEvent.KEYCODE_DPAD_RIGHT;
-          break;
-        case KeyEvent.KEYCODE_DPAD_LEFT:
-          mapped = KeyEvent.KEYCODE_DPAD_DOWN;
-          break;
-      }
-    } else {
-      switch (key) {
-        case KeyEvent.KEYCODE_DPAD_UP:
-          mapped = KeyEvent.KEYCODE_DPAD_RIGHT;
-          break;
-        case KeyEvent.KEYCODE_DPAD_RIGHT:
-          mapped = KeyEvent.KEYCODE_DPAD_DOWN;
-          break;
-        case KeyEvent.KEYCODE_DPAD_DOWN:
-          mapped = KeyEvent.KEYCODE_DPAD_LEFT;
-          break;
-        case KeyEvent.KEYCODE_DPAD_LEFT:
-          mapped = KeyEvent.KEYCODE_DPAD_UP;
-          break;
-      }
-    }
+    int[] directions = {KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_RIGHT,
+        KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT};
+    for (int i = 0; i < directions.length; i++)
+      if (directions[i] == key) mapped = directions[ReadingOrientation.direction(i, rotation)];
     if (mapped == key) return event;
     return new ScreenKey(event, mapped);
   }
@@ -132,7 +105,7 @@ public final class ReaderInput {
                           0,
                           0,
                           InputDevice.SOURCE_GAMEPAD),
-                      app.dpadBottom)
+                      app.rotation)
                   .getKeyCode();
       if (key == 0 && pressed == 0) return false;
       if (key != pressed) {

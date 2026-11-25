@@ -8,6 +8,19 @@ import android.text.style.ImageSpan;
 
 /** Small native vector marks, also rendered inside Android's text-selection toolbar. */
 public final class ReaderIcons {
+  public static String action(String label) {
+    if (label.startsWith("Change highlight color")) return "palette";
+    if (label.startsWith("Delete")) return "delete";
+    if (label.startsWith("Edit")) return "edit";
+    if (label.startsWith("Copy")) return "copy";
+    if (label.startsWith("Paste")) return "paste";
+    if (label.contains("dictionary")) return "dictionary";
+    if (label.contains("note") || label.contains("passage")) return "note";
+    if (label.startsWith("Move")) return "move";
+    if (label.startsWith("Create") || label.startsWith("New")) return "add";
+    return null;
+  }
+
   public static Drawable icon(String kind, int color, int size) {
     Icon d = new Icon(kind, color);
     d.setBounds(0, 0, size, size);
@@ -45,7 +58,51 @@ public final class ReaderIcons {
       paint.setStrokeJoin(Paint.Join.ROUND);
       paint.setStrokeCap(Paint.Cap.ROUND);
       Path p = new Path();
-      if (kind.equals("copy")) {
+      if (kind.equals("palette")) {
+        p.moveTo(20, 15);
+        p.cubicTo(23, 8, 17, 2, 11, 3);
+        p.cubicTo(3, 3, 0, 13, 5, 18);
+        p.cubicTo(9, 23, 15, 23, 14, 18);
+        p.cubicTo(13, 14, 17, 15, 20, 15);
+        p.close();
+        canvas.drawPath(p, paint);
+        for (float[] dot : new float[][] {{6, 11}, {9, 7}, {14, 6}, {18, 10}})
+          canvas.drawCircle(dot[0], dot[1], .8f, paint);
+      } else if (kind.equals("delete")) {
+        canvas.drawLine(3, 6, 21, 6, paint);
+        canvas.drawRoundRect(6, 6, 18, 22, 1, 1, paint);
+        canvas.drawRect(9, 2, 15, 6, paint);
+        canvas.drawLine(10, 10, 10, 18, paint);
+        canvas.drawLine(14, 10, 14, 18, paint);
+      } else if (kind.equals("edit")) {
+        p.moveTo(4, 16);
+        p.lineTo(16, 4);
+        p.lineTo(21, 9);
+        p.lineTo(9, 21);
+        p.lineTo(3, 22);
+        p.close();
+        canvas.drawPath(p, paint);
+        canvas.drawLine(13, 7, 18, 12, paint);
+      } else if (kind.equals("add")) {
+        canvas.drawLine(12, 4, 12, 20, paint);
+        canvas.drawLine(4, 12, 20, 12, paint);
+      } else if (kind.equals("move")) {
+        canvas.drawLine(3, 12, 21, 12, paint);
+        canvas.drawLine(15, 6, 21, 12, paint);
+        canvas.drawLine(15, 18, 21, 12, paint);
+      } else if (kind.startsWith("align-")) {
+        int align = Integer.parseInt(kind.substring(6));
+        for (int line = 0; line < 4; line++) {
+          float start = align == 2 && line % 2 != 0 ? 8 : 3;
+          float end = align == 0 && line % 2 != 0 ? 16 : 21;
+          canvas.drawLine(start, 5 + line * 5, end, 5 + line * 5, paint);
+        }
+      } else if (kind.startsWith("rotate-")) {
+        canvas.rotate(Integer.parseInt(kind.substring(7)) - 90, 12, 12);
+        canvas.drawRoundRect(4, 2, 20, 18, 2, 2, paint);
+        canvas.drawLine(12, 3, 12, 17, paint);
+        canvas.drawCircle(12, 21, 1, paint);
+      } else if (kind.equals("copy")) {
         canvas.drawRoundRect(8, 8, 21, 21, 1.5f, 1.5f, paint);
         p.moveTo(16, 5);
         p.lineTo(16, 3);
@@ -53,6 +110,18 @@ public final class ReaderIcons {
         p.lineTo(3, 16);
         p.lineTo(5, 16);
         canvas.drawPath(p, paint);
+      } else if (kind.equals("paste")) {
+        canvas.drawRoundRect(5, 4, 20, 22, 1.5f, 1.5f, paint);
+        canvas.drawRoundRect(9, 2, 16, 7, 1, 1, paint);
+        canvas.drawLine(9, 12, 16, 12, paint);
+        canvas.drawLine(9, 16, 16, 16, paint);
+      } else if (kind.equals("select-all")) {
+        paint.setPathEffect(new DashPathEffect(new float[] {2, 2}, 0));
+        canvas.drawRect(2, 2, 22, 22, paint);
+        paint.setPathEffect(null);
+        canvas.drawLine(6, 8, 18, 8, paint);
+        canvas.drawLine(6, 12, 18, 12, paint);
+        canvas.drawLine(6, 16, 18, 16, paint);
       } else if (kind.equals("dictionary")) {
         p.moveTo(12, 6);
         p.cubicTo(8, 3, 4, 4, 2, 5);

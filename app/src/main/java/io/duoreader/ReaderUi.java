@@ -32,8 +32,10 @@ public final class ReaderUi {
   private Button fontQuick, sizeQuick, spacingQuick, marginQuick, matchQuick;
   final ReaderFeedback feedback = new ReaderFeedback(this);
   FrameLayout dialogSurface;
+  private PortraitHost dialogHost;
   private java.util.concurrent.Future<?> lookupTask;
   private Epub displayedBook;
+  private Library.Entry displayedDocument;
 
   private void cancelLookup() {
     if (lookupTask != null) {
@@ -44,6 +46,7 @@ public final class ReaderUi {
 
   private final ArrayList<Button> pageColors = new ArrayList<>();
   private final ArrayList<Button> overlayButtons = new ArrayList<>();
+  private final ArrayList<Button> alignmentButtons = new ArrayList<>();
   private final Runnable autoHide = this::hideControls;
   public ListView list;
   BookListAdapter adapter;
@@ -55,6 +58,7 @@ public final class ReaderUi {
   private int iconSet;
   String builtMode = "";
   int builtTheme = -1;
+  boolean builtCompact;
   final float density;
 
   public ReaderUi(Activity a, ReaderApp state) {
@@ -69,8 +73,6 @@ public final class ReaderUi {
   }
 
   public int accent() {
-    if (app.mode.equals("reading"))
-      return app.paper == 2 ? 0xffb7c9c5 : app.paper == 1 ? 0xff8b694a : 0xff426b82;
     return app.libraryTheme().accent;
   }
 
@@ -79,23 +81,19 @@ public final class ReaderUi {
   }
 
   int surface() {
-    return app.mode.equals("reading") ? app.pageColor() : app.libraryTheme().surface;
+    return app.libraryTheme().surface;
   }
 
   int ink() {
-    return app.mode.equals("reading") ? app.ink() : app.libraryTheme().ink;
+    return app.libraryTheme().ink;
   }
 
   int muted() {
-    return app.mode.equals("reading")
-        ? (app.paper == 2 ? 0xff9a9e94 : 0xff74796f)
-        : app.libraryTheme().muted;
+    return app.libraryTheme().muted;
   }
 
   int line() {
-    return app.mode.equals("reading")
-        ? (app.paper == 2 ? 0xff46504c : 0xffcdd0c6)
-        : app.libraryTheme().line;
+    return app.libraryTheme().line;
   }
 
   GradientDrawable shape(int fill, int stroke, int width) {
@@ -111,15 +109,16 @@ public final class ReaderUi {
   }
 
   StateListDrawable controlBackground() {
-    boolean reading = app.mode.equals("reading");
-    int fill = reading ? translucent(app.pageColor(), 155) : surface(),
-        active = reading ? fill : app.libraryTheme().soft;
+    return controlBackground(surface(), app.libraryTheme().soft, line());
+  }
+
+  StateListDrawable controlBackground(int fill, int active, int border) {
     StateListDrawable d = new StateListDrawable();
     d.addState(new int[] {android.R.attr.state_pressed}, shape(active, accent(), 2));
     d.addState(new int[] {android.R.attr.state_focused}, shape(active, accent(), 2));
     d.addState(new int[] {android.R.attr.state_activated}, shape(active, accent(), 2));
     d.addState(new int[] {android.R.attr.state_selected}, shape(active, accent(), 2));
-    d.addState(new int[] {}, shape(fill, reading ? translucent(accent(), 100) : line(), 1));
+    d.addState(new int[] {}, shape(fill, border, 1));
     return d;
   }
 
@@ -198,13 +197,19 @@ public final class ReaderUi {
   }
 
   public void refresh() {
-    if (!builtMode.equals(app.mode) || displayedBook != app.book) {
+    boolean compact = app.mode.equals("library") && !ReadingOrientation.swapsAxes(app.rotation);
+    boolean documentChanged = !app.mode.equals("library") && displayedDocument != app.current;
+    if (!builtMode.equals(app.mode) || displayedBook != app.book || documentChanged) {
       feedback.dismiss();
       cancelLookup();
       if (dialog != null) dialog.dismiss();
     }
     displayedBook = app.book;
-    if (!builtMode.equals(app.mode) || builtTheme != app.theme) {
+    displayedDocument = app.current;
+    if (!builtMode.equals(app.mode)
+        || builtTheme != app.theme
+        || documentChanged
+        || builtCompact != compact) {
       feedback.dismiss();
       app.main.removeCallbacks(autoHide);
       root.removeAllViews();
@@ -221,8 +226,11 @@ public final class ReaderUi {
       restoringList = false;
       builtMode = app.mode;
       builtTheme = app.theme;
+      builtCompact = compact;
       root.setBackgroundColor(shell());
       if (app.mode.equals("reading") && app.book != null) buildReader();
+      else if (app.mode.equals("editing")) app.editor.buildControls(this);
+      else if (app.mode.equals("comic")) app.comics.buildControls(this);
       else buildLibrary();
     }
     if (paper != null) {
@@ -268,17 +276,18 @@ public final class ReaderUi {
 
   void buildLibrary() {
     LinearLayout body = column();
-    body.setPadding(dp(15), dp(14), dp(15), dp(8));
+    body.setPadding(dp(15), dp(builtCompact ? 8 : 14), dp(15), dp(builtCompact ? 6 : 8));
     root.addView(body, new FrameLayout.LayoutParams(-1, -1));
     LinearLayout brand = row();
-    TextView title = text("Duo Reader", 23, ink());
+    TextView title = text("Duo Reader", builtCompact ? 20 : 23, ink());
     title.setTypeface(Typeface.create("serif", 0));
-    brand.addView(title, new LinearLayout.LayoutParams(0, dp(45), 1));
+    brand.addView(title, new LinearLayout.LayoutParams(0, dp(builtCompact ? 34 : 45), 1));
     Button options = button("Preferences", this::preferences);
-    brand.addView(options, new LinearLayout.LayoutParams(dp(98), dp(40)));
+    brand.addView(options, new LinearLayout.LayoutParams(dp(98), dp(builtCompact ? 32 : 40)));
     Button close = button("Close", app::close);
     styleAppClose(close);
-    LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(dp(60), dp(40));
+    LinearLayout.LayoutParams cp =
+        new LinearLayout.LayoutParams(dp(60), dp(builtCompact ? 32 : 40));
     cp.setMargins(dp(6), 0, 0, 0);
     brand.addView(close, cp);
     body.addView(brand);
@@ -286,16 +295,16 @@ public final class ReaderUi {
     LinearLayout path = row();
     Button parent = button("‹", () -> app.parent());
     parent.setContentDescription("Parent folder");
-    path.addView(parent, new LinearLayout.LayoutParams(dp(43), dp(40)));
+    path.addView(parent, new LinearLayout.LayoutParams(dp(43), dp(builtCompact ? 32 : 40)));
     pathLabel = text(app.folderLabel(), 14, ink());
     pathLabel.setSingleLine(true);
     pathLabel.setEllipsize(TextUtils.TruncateAt.MIDDLE);
     pathLabel.setPadding(dp(12), 0, dp(6), 0);
-    path.addView(pathLabel, new LinearLayout.LayoutParams(0, dp(40), 1));
+    path.addView(pathLabel, new LinearLayout.LayoutParams(0, dp(builtCompact ? 32 : 40), 1));
     pathLabel.setGravity(Gravity.CENTER_VERTICAL);
     Button refresh = button("↻", () -> app.loadFolder(app.folder));
     refresh.setContentDescription("Refresh folder");
-    path.addView(refresh, new LinearLayout.LayoutParams(dp(43), dp(40)));
+    path.addView(refresh, new LinearLayout.LayoutParams(dp(43), dp(builtCompact ? 32 : 40)));
     body.addView(path);
     resumeButton =
         button(
@@ -314,17 +323,22 @@ public final class ReaderUi {
                 app.open(e);
               }
             });
-    LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, dp(43));
-    rp.setMargins(0, dp(10), 0, dp(3));
+    LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, dp(builtCompact ? 36 : 43));
+    rp.setMargins(0, dp(builtCompact ? 3 : 10), 0, dp(3));
     body.addView(resumeButton, rp);
     LinearLayout head = row();
     TextView heading = text("BOOKS & COLLECTIONS", 10, muted());
     heading.setLetterSpacing(.09f);
-    heading.setPadding(dp(3), dp(10), 0, dp(8));
-    head.addView(heading, new LinearLayout.LayoutParams(0, dp(44), 1));
+    heading.setPadding(dp(3), dp(builtCompact ? 4 : 10), 0, dp(builtCompact ? 4 : 8));
+    head.addView(heading, new LinearLayout.LayoutParams(0, dp(builtCompact ? 38 : 44), 1));
     collectionButton = button("Icon", this::collectionIcon);
     collectionButton.setContentDescription("Change collection icon");
     head.addView(collectionButton, new LinearLayout.LayoutParams(dp(65), dp(36)));
+    Button manage = button("Manage", () -> app.libraryManager.manage(app.selected));
+    head.addView(manage, new LinearLayout.LayoutParams(dp(70), dp(36)));
+    Button add = button("+", app.libraryManager::createMenu);
+    add.setContentDescription("Create collection or document");
+    head.addView(add, new LinearLayout.LayoutParams(dp(38), dp(36)));
     body.addView(head);
     list = new ListView(activity);
     list.setDivider(new ColorDrawable(Color.TRANSPARENT));
@@ -339,7 +353,7 @@ public final class ReaderUi {
     body.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
     TextView empty =
         text(
-            "No EPUBs here yet.\n"
+            "No documents here yet.\n"
                 + "Choose your books folder in Preferences,\n"
                 + "or open a collection above.",
             14,
@@ -381,12 +395,17 @@ public final class ReaderUi {
           public void onNothingSelected(AdapterView<?> p) {}
         });
     libraryStatus = text(app.status, 11, muted());
-    libraryStatus.setPadding(dp(3), dp(9), dp(3), dp(5));
+    libraryStatus.setPadding(dp(3), dp(builtCompact ? 3 : 9), dp(3), dp(builtCompact ? 3 : 5));
+    if (builtCompact) {
+      libraryStatus.setMaxLines(1);
+      libraryStatus.setEllipsize(TextUtils.TruncateAt.END);
+    }
     body.addView(libraryStatus);
     TextView help = text("↑↓ Browse    → Open    ← Parent", 11, ink());
     help.setGravity(Gravity.CENTER);
     help.setPadding(0, dp(5), 0, dp(3));
     body.addView(help);
+    if (builtCompact) help.setVisibility(View.GONE);
     LinearLayout keys = row();
     for (String key : new String[] {"A", "B", "X", "Y"}) {
       LinearLayout hint = row();
@@ -407,6 +426,7 @@ public final class ReaderUi {
       keys.addView(hint, new LinearLayout.LayoutParams(0, dp(28), 1));
     }
     body.addView(keys);
+    if (builtCompact) keys.setVisibility(View.GONE);
     if (!app.entries.isEmpty()) {
       list.setSelection(app.selectedIndex());
       list.requestFocusFromTouch();
@@ -415,11 +435,11 @@ public final class ReaderUi {
 
   LinearLayout hardwareStrip(LibraryTheme palette) {
     LinearLayout strip = row();
-    strip.setPadding(dp(2), 0, dp(2), dp(9));
-    TextView label = text(palette.name + "  ·  LOCAL EPUB LIBRARY", 10, palette.muted);
+    strip.setPadding(dp(2), 0, dp(2), dp(builtCompact ? 0 : 9));
+    TextView label = text(palette.name + "  ·  LOCAL LIBRARY", 10, palette.muted);
     label.setSingleLine(true);
     label.setEllipsize(TextUtils.TruncateAt.END);
-    strip.addView(label, new LinearLayout.LayoutParams(0, dp(27), 1));
+    strip.addView(label, new LinearLayout.LayoutParams(0, dp(builtCompact ? 14 : 27), 1));
     for (int color : new int[] {palette.a, palette.b, palette.x, palette.y, palette.stick}) {
       View dot = new View(activity);
       GradientDrawable bg = new GradientDrawable();
@@ -495,6 +515,26 @@ public final class ReaderUi {
   void buildQuickAppearance() {
     appearanceOverlay = column();
     appearanceOverlay.setPadding(dp(5), dp(5), dp(5), dp(14));
+    LinearLayout navigation = row();
+    navigation.setPadding(0, 0, dp(43), 0);
+    addWeighted(navigation, readerButton("Library", app::library));
+    alignmentButtons.clear();
+    String[] alignments = {"Left", "Justify", "Right"};
+    for (int i = 0; i < alignments.length; i++) {
+      final int choice = i;
+      Button align =
+          readerButton(
+              "",
+              () -> {
+                app.alignment = choice;
+                app.appearance();
+                scheduleHide();
+              });
+      align.setContentDescription(alignments[i] + " alignment");
+      alignmentButtons.add(align);
+      addWeighted(navigation, align);
+    }
+    appearanceOverlay.addView(navigation);
     LinearLayout fonts = row();
     fonts.setPadding(0, 0, dp(43), 0);
     fontQuick = readerButton("", this::fontPicker);
@@ -504,8 +544,7 @@ public final class ReaderUi {
         readerButton(
             "A−",
             () -> {
-              app.fontSize = Math.max(12, app.fontSize - 1);
-              app.appearance();
+              fontStep(-1);
               scheduleHide();
             }));
     sizeQuick = readerButton("", () -> {});
@@ -516,8 +555,7 @@ public final class ReaderUi {
         readerButton(
             "A+",
             () -> {
-              app.fontSize = Math.min(32, app.fontSize + 1);
-              app.appearance();
+              fontStep(1);
               scheduleHide();
             }));
     appearanceOverlay.addView(fonts);
@@ -588,10 +626,12 @@ public final class ReaderUi {
             GradientDrawable.Orientation.TOP_BOTTOM,
             new int[] {translucent(bg, 0), translucent(bg, 75), translucent(bg, 135)});
     controlsOverlay.setBackground(fade);
-    readingStatus.setTextColor(muted());
+    readingStatus.setTextColor(app.paper == 2 ? 0xff9a9e94 : 0xff74796f);
     for (Button b : overlayButtons) {
       b.setTextColor(app.ink());
-      b.setBackground(controlBackground());
+      b.setBackground(
+          controlBackground(
+              translucent(bg, 155), translucent(bg, 210), translucent(accent(), 100)));
     }
     if (appearanceOverlay != null) {
       appearanceOverlay.setBackground(
@@ -600,10 +640,16 @@ public final class ReaderUi {
               new int[] {translucent(bg, 150), translucent(bg, 90), translucent(bg, 0)}));
       fontQuick.setText(new String[] {"Serif", "Sans", "Mono"}[app.font]);
       fontQuick.setTypeface(app.typeface());
-      sizeQuick.setText(Integer.toString(app.fontSize));
+      sizeQuick.setText(fontSizeLabel());
       spacingQuick.setText("Spacing " + String.format(Locale.ROOT, "%.1f", app.spacing));
       marginQuick.setText("Margins " + app.margin);
       matchQuick.setText("Match " + (app.matchScreens ? "On" : "Off"));
+      for (int i = 0; i < alignmentButtons.size(); i++) {
+        Button align = alignmentButtons.get(i);
+        align.setCompoundDrawables(
+            null, ReaderIcons.icon("align-" + i, app.ink(), dp(20)), null, null);
+        align.setSelected(app.alignment == i);
+      }
       for (int i = 0; i < pageColors.size(); i++) {
         Button b = pageColors.get(i);
         b.setTextColor(ReaderApp.PAPER_INKS[i]);
@@ -668,6 +714,13 @@ public final class ReaderUi {
   }
 
   Dialog showDialog(String title, View content) {
+    ScrollView scroll = new ScrollView(activity);
+    scroll.setFillViewport(false);
+    scroll.addView(content);
+    return showPanel(title, scroll, null);
+  }
+
+  Dialog showPanel(String title, View content, View footer) {
     feedback.dismiss();
     hideControls();
     app.turns.cancel();
@@ -677,29 +730,29 @@ public final class ReaderUi {
         new Dialog(activity) {
           @Override
           public boolean dispatchKeyEvent(KeyEvent event) {
-            return super.dispatchKeyEvent(ReaderInput.orient(event, app.dpadBottom));
+            return super.dispatchKeyEvent(ReaderInput.orient(event, app.rotation));
           }
         };
     d.requestWindowFeature(Window.FEATURE_NO_TITLE);
     LinearLayout layout = column();
     layout.setPadding(dp(16), dp(13), dp(16), dp(12));
-    layout.setBackground(
-        shape(app.mode.equals("reading") ? translucent(app.pageColor(), 242) : shell(), line(), 1));
+    layout.setBackground(shape(shell(), line(), 1));
     TextView heading = text(title, 23, ink());
+    heading.setMaxLines(1);
+    heading.setEllipsize(TextUtils.TruncateAt.END);
     heading.setTypeface(Typeface.create("serif", 0));
     heading.setPadding(dp(3), dp(3), dp(3), dp(13));
     layout.addView(heading);
-    ScrollView scroll = new ScrollView(activity);
-    scroll.setFillViewport(false);
-    scroll.addView(content);
-    layout.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+    layout.addView(content, new LinearLayout.LayoutParams(-1, 0, 1));
+    if (footer != null) layout.addView(footer, new LinearLayout.LayoutParams(-1, -2));
     Button close = button("Back", d::dismiss);
     LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-1, dp(43));
     bp.setMargins(0, dp(10), 0, 0);
     layout.addView(close, bp);
     FrameLayout surface = new FrameLayout(activity);
     surface.addView(layout, new FrameLayout.LayoutParams(-1, -1));
-    d.setContentView(new PortraitHost(activity, surface, dp(11), dp(17)));
+    dialogHost = new PortraitHost(activity, surface, dp(11), dp(17));
+    d.setContentView(dialogHost);
     dialog = d;
     dialogSurface = surface;
     d.setOnDismissListener(
@@ -748,6 +801,8 @@ public final class ReaderUi {
 
   void option(LinearLayout body, String label, Runnable action) {
     Button b = button(label, action);
+    String icon = ReaderIcons.action(label);
+    if (icon != null) actionIcon(b, icon);
     if ("Close app".equals(label)) styleAppClose(b);
     b.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
     b.setMaxLines(3);
@@ -755,6 +810,53 @@ public final class ReaderUi {
     LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
     p.setMargins(dp(2), dp(3), dp(2), dp(3));
     body.addView(b, p);
+  }
+
+  void actionIcon(Button button, String kind) {
+    button.setCompoundDrawables(ReaderIcons.icon(kind, accent(), dp(19)), null, null, null);
+    button.setCompoundDrawablePadding(dp(9));
+  }
+
+  LinearLayout actionGrid(LinearLayout actions) {
+    LinearLayout grid = column();
+    while (actions.getChildCount() > 0) {
+      LinearLayout row = row();
+      for (int i = 0; i < 2 && actions.getChildCount() > 0; i++) {
+        View action = actions.getChildAt(0);
+        actions.removeView(action);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1);
+        params.setMargins(dp(2), dp(2), dp(2), dp(2));
+        row.addView(action, params);
+      }
+      grid.addView(row);
+    }
+    return grid;
+  }
+
+  public void updateDialogOrientation() {
+    if (dialogHost != null && dialog != null && dialog.isShowing()) dialogHost.updateGrip();
+  }
+
+  void rotationControls(LinearLayout body) {
+    LinearLayout choices = row();
+    for (int angle : new int[] {0, 90, 180, 270}) {
+      Button choice =
+          button(
+              angle + "°",
+              () -> {
+                app.controller.cancel();
+                app.rotation = angle;
+                app.appearance();
+                if (dialog != null) dialog.dismiss();
+              });
+      choice.setCompoundDrawables(
+          ReaderIcons.icon("rotate-" + angle, accent(), dp(22)), null, null, null);
+      choice.setCompoundDrawablePadding(dp(4));
+      choice.setContentDescription("Rotate content " + angle + " degrees");
+      choice.setSelected(app.rotation == angle);
+      addWeighted(choices, choice);
+    }
+    body.addView(choices);
   }
 
   void menu(String title, String[] choices, java.util.function.IntConsumer action) {
@@ -902,13 +1004,14 @@ public final class ReaderUi {
         new Dialog(activity) {
           @Override
           public boolean dispatchKeyEvent(KeyEvent event) {
-            return super.dispatchKeyEvent(ReaderInput.orient(event, app.dpadBottom));
+            return super.dispatchKeyEvent(ReaderInput.orient(event, app.rotation));
           }
         };
     picker.requestWindowFeature(Window.FEATURE_NO_TITLE);
     FrameLayout surface = new FrameLayout(activity);
     surface.addView(body, new FrameLayout.LayoutParams(-1, -1));
-    picker.setContentView(new PortraitHost(activity, surface));
+    dialogHost = new PortraitHost(activity, surface);
+    picker.setContentView(dialogHost);
     dialog = picker;
     dialogSurface = surface;
     picker.setOnDismissListener(
@@ -977,7 +1080,10 @@ public final class ReaderUi {
             "Refresh library",
             "Continue reading",
             "Button guide",
-            "Close app"
+            "Close app",
+            "Manage selected item",
+            "Create collection or document",
+            "Import files…"
           },
           i -> {
             switch (i) {
@@ -1001,21 +1107,31 @@ public final class ReaderUi {
                 break;
               case 6:
                 app.close();
+                break;
+              case 7:
+                app.libraryManager.manage(app.selected);
+                break;
+              case 8:
+                app.libraryManager.createMenu();
+                break;
+              case 9:
+                if (app.bottom != null) app.bottom.importFiles();
             }
           });
       return;
     }
-    menu(
-        "Reading desk",
-        new String[] {
-          "Bookmarks & notes  ·  " + app.marks.length(),
-          "Select passage with buttons",
-          "English dictionary",
-          "Keybindings",
-          "Return to library",
-          "Button guide",
-          "Close app"
-        },
+    LinearLayout readingMenu = column();
+    rotationControls(readingMenu);
+    option(readingMenu, "Advanced display settings", this::advancedDisplay);
+    String[] readingChoices = {
+      "Bookmarks & notes  ·  " + app.marks.length(),
+      "Select passage with buttons",
+      "English dictionary",
+      "Keybindings",
+      "Button guide",
+      "Close app"
+    };
+    java.util.function.IntConsumer readingAction =
         i -> {
           switch (i) {
             case 0:
@@ -1031,15 +1147,23 @@ public final class ReaderUi {
               keybindings();
               break;
             case 4:
-              app.library();
-              break;
-            case 5:
               guide();
               break;
-            case 6:
+            case 5:
               app.close();
           }
-        });
+        };
+    for (int i = 0; i < readingChoices.length; i++) {
+      final int index = i;
+      option(
+          readingMenu,
+          readingChoices[i],
+          () -> {
+            if (dialog != null) dialog.dismiss();
+            readingAction.accept(index);
+          });
+    }
+    showDialog("Reading desk", readingMenu);
   }
 
   public void keybindings() {
@@ -1126,11 +1250,25 @@ public final class ReaderUi {
 
   void fontStep(int step) {
     int size = Math.max(12, Math.min(32, app.fontSize + step));
-    if (size != app.fontSize) {
+    int upper = Math.max(12, Math.min(32, app.upperFontSize + step));
+    int lower = Math.max(12, Math.min(32, app.lowerFontSize + step));
+    if (size != app.fontSize
+        || app.allowDifferentFontSizes
+            && (upper != app.upperFontSize || lower != app.lowerFontSize)) {
       app.fontSize = size;
+      if (app.allowDifferentFontSizes) {
+        app.upperFontSize = upper;
+        app.lowerFontSize = lower;
+      }
       app.appearance();
     }
-    toast("Font size " + app.fontSize);
+    toast("Font size " + fontSizeLabel());
+  }
+
+  private String fontSizeLabel() {
+    return app.allowDifferentFontSizes
+        ? app.upperFontSize + " / " + app.lowerFontSize
+        : Integer.toString(app.fontSize);
   }
 
   void readingAction(ReadingBindings.Action action) {
@@ -1415,6 +1553,7 @@ public final class ReaderUi {
         "Note on this passage",
         "",
         "Save note",
+        true,
         note -> {
           app.addMark("note", start, end, note, quote);
           toast("Note saved");
@@ -1449,32 +1588,34 @@ public final class ReaderUi {
     JSONObject m = app.marks.optJSONObject(index);
     if (m == null) return;
     LinearLayout body = column();
-    TextView quote = text(m.optString("quote"), 16, ink());
-    quote.setTypeface(Typeface.create("serif", 0));
-    quote.setPadding(dp(5), dp(10), dp(5), dp(15));
+    TextView quote = text(m.optString("quote"), 13, muted());
+    quote.setMaxLines(2);
+    quote.setEllipsize(TextUtils.TruncateAt.END);
+    quote.setPadding(dp(5), dp(2), dp(5), dp(8));
     body.addView(quote);
-    if (!m.optString("note").isEmpty()) {
-      TextView note = text(m.optString("note"), 14, ink());
-      note.setPadding(dp(5), dp(5), dp(5), dp(15));
-      body.addView(note);
-    }
+    TextView label = text(m.optString("note").isEmpty() ? "SAVED PASSAGE" : "NOTE", 12, accent());
+    label.setTypeface(Typeface.DEFAULT_BOLD);
+    body.addView(label);
+    NumberedText noteText = new NumberedText(this, false);
+    noteText.setText(m.optString("note").isEmpty() ? m.optString("quote") : m.optString("note"));
+    body.addView(noteText, new LinearLayout.LayoutParams(-1, 0, 1));
+    LinearLayout actions = column();
     option(
-        body,
+        actions,
         "Go to passage",
         () -> {
           dialog.dismiss();
           app.jump(new ReaderApp.Location(m.optInt("chapter"), m.optInt("start")));
         });
     option(
-        body, "English dictionary", () -> dictionary(m.optString("quote").trim().split("\\s+")[0]));
-    option(
-        body,
+        actions,
         "Edit note",
         () ->
             keyboard(
                 "Edit note",
                 m.optString("note"),
                 "Save note",
+                true,
                 note -> {
                   try {
                     m.put("note", note);
@@ -1486,7 +1627,7 @@ public final class ReaderUi {
                 }));
     if (!m.optString("kind").equals("bookmark"))
       option(
-          body,
+          actions,
           "Change highlight color",
           () ->
               chooseHighlightColor(
@@ -1498,7 +1639,7 @@ public final class ReaderUi {
                     }
                   }));
     option(
-        body,
+        actions,
         "Delete",
         () ->
             menu(
@@ -1511,7 +1652,7 @@ public final class ReaderUi {
                     toast("Saved passage deleted");
                   }
                 }));
-    showDialog(m.optString("note").isEmpty() ? "Saved passage" : "Note", body);
+    showPanel(m.optString("note").isEmpty() ? "Saved passage" : "Note", body, actionGrid(actions));
   }
 
   public void preferences() {
@@ -1533,14 +1674,8 @@ public final class ReaderUi {
           app.setRoot(Uri.fromFile(Library.appDirectory(app)).toString());
         });
     option(body, "Library theme  ·  " + ReaderApp.THEMES[app.theme], this::libraryThemes);
-    option(
-        body,
-        "Holding position  ·  D-pad at " + (app.dpadBottom ? "bottom" : "top"),
-        () -> {
-          app.dpadBottom = !app.dpadBottom;
-          app.appearance();
-          preferences();
-        });
+    rotationControls(body);
+    option(body, "Advanced display settings", this::advancedDisplay);
     option(
         body,
         "Match larger screen to smaller  ·  " + (app.matchScreens ? "On" : "Off"),
@@ -1577,12 +1712,63 @@ public final class ReaderUi {
     showDialog("Preferences", body);
   }
 
+  void advancedDisplay() {
+    LinearLayout body = column();
+    TextView explanation =
+        text(
+            "Text sizes automatically compensate for each screen’s pixel density. "
+                + "Enable separate sizes only to give the two pages different text sizes.",
+            14,
+            muted());
+    body.addView(explanation);
+    option(
+        body,
+        "Allow different font sizes  ·  " + (app.allowDifferentFontSizes ? "On" : "Off"),
+        () -> {
+          app.allowDifferentFontSizes = !app.allowDifferentFontSizes;
+          app.appearance();
+          advancedDisplay();
+        });
+    for (boolean lower : new boolean[] {false, true}) {
+      LinearLayout sizes = row();
+      TextView label =
+          text(
+              (lower ? "Smaller" : "Larger")
+                  + " screen  ·  "
+                  + (lower ? app.lowerFontSize : app.upperFontSize),
+              14,
+              ink());
+      sizes.addView(label, new LinearLayout.LayoutParams(0, -2, 2));
+      for (int delta : new int[] {-1, 1}) {
+        Button control =
+            button(
+                delta < 0 ? "A−" : "A+",
+                () -> {
+                  if (lower) app.lowerFontSize += delta;
+                  else app.upperFontSize += delta;
+                  app.appearance();
+                  advancedDisplay();
+                });
+        control.setContentDescription(
+            (lower ? "Smaller" : "Larger")
+                + " screen font "
+                + (delta < 0 ? "decrease" : "increase"));
+        control.setEnabled(app.allowDifferentFontSizes);
+        control.setAlpha(app.allowDifferentFontSizes ? 1f : .4f);
+        addWeighted(sizes, control);
+      }
+      body.addView(sizes);
+    }
+    showDialog("Advanced display", body);
+  }
+
   void chooseFolder() {
     if (dialog != null) dialog.dismiss();
     Intent intent =
         new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
             .addFlags(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
                     | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
     intent.putExtra(
@@ -1659,7 +1845,7 @@ public final class ReaderUi {
         new StringBuilder(
             "HOLD YOUR DUO LIKE A BOOK\n"
                 + "Larger screen left, smaller touch screen right, D-pad at the "
-                + (app.dpadBottom ? "bottom" : "top")
+                + (app.rotation + "°")
                 + ". Directions follow this grip.\n\nYOUR READING SHORTCUTS\n");
     for (int i = 0; i < ReadingBindings.KEYS.length; i++)
       keys.append(ReadingBindings.LABELS[i])
@@ -1695,134 +1881,52 @@ public final class ReaderUi {
   }
 
   public void keyboard(String title, String initial, String submit, Consumer<String> done) {
+    keyboard(title, initial, submit, false, done);
+  }
+
+  void keyboard(
+      String title, String initial, String submit, boolean multiline, Consumer<String> done) {
     LinearLayout body = column();
-    StringBuilder value = new StringBuilder(initial);
-    boolean[] caps = {false};
-    TextView field = text(initial, 16, ink());
-    field.setMinHeight(dp(72));
-    field.setGravity(Gravity.TOP | Gravity.START);
-    field.setPadding(dp(10), dp(10), dp(10), dp(10));
-    field.setBackground(shape(surface(), accent(), 1));
-    field.setMaxLines(5);
-    body.addView(field, new LinearLayout.LayoutParams(-1, -2));
-    TextView help = text("D-pad + A to type   ·   Y Space   ·   L1 Delete", 10, muted());
-    help.setPadding(dp(3), dp(9), 0, dp(5));
-    body.addView(help);
-    ArrayList<Button> letters = new ArrayList<>();
-    for (String chars : new String[] {"1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm.,?"}) {
-      LinearLayout keys = row();
-      for (char ch : chars.toCharArray()) {
-        final String letter = String.valueOf(ch);
-        Button key =
-            button(
-                letter,
-                () -> {
-                  if (value.length() < 4000) {
-                    value.append(caps[0] ? letter.toUpperCase(Locale.ROOT) : letter);
-                    field.setText(value.toString() + "▏");
-                  }
-                });
-        key.setPadding(0, 0, 0, 0);
-        letters.add(key);
-        LinearLayout.LayoutParams kp = new LinearLayout.LayoutParams(0, dp(39), 1);
-        kp.setMargins(dp(1), dp(2), dp(1), dp(2));
-        keys.addView(key, kp);
-      }
-      body.addView(keys);
-    }
-    LinearLayout controls = row();
-    addWeighted(
-        controls,
-        button(
-            "Shift",
-            () -> {
-              caps[0] = !caps[0];
-              for (Button b : letters) {
-                String s = b.getText().toString();
-                b.setText(caps[0] ? s.toUpperCase(Locale.ROOT) : s.toLowerCase(Locale.ROOT));
-              }
-            }));
-    addWeighted(
-        controls,
-        button(
-            "Space",
-            () -> {
-              if (value.length() < 4000) value.append(' ');
-              field.setText(value.toString() + "▏");
-            }));
-    addWeighted(
-        controls,
-        button(
-            "⌫",
-            () -> {
-              if (value.length() > 0) value.deleteCharAt(value.length() - 1);
-              field.setText(value.toString() + "▏");
-            }));
-    body.addView(controls);
-    LinearLayout punctuation = row();
-    for (String ch : new String[] {"'", "\"", "!", "-", ":", ";", "(", ")"}) {
-      Button b =
-          button(
-              ch,
-              () -> {
-                if (value.length() < 4000) value.append(ch);
-                field.setText(value.toString() + "▏");
-              });
-      b.setPadding(0, 0, 0, 0);
-      LinearLayout.LayoutParams kp = new LinearLayout.LayoutParams(0, dp(36), 1);
-      kp.setMargins(dp(1), dp(2), dp(1), dp(2));
-      punctuation.addView(b, kp);
-    }
-    body.addView(punctuation);
+    NumberedText field = new NumberedText(this, true);
+    field.setText(initial);
+    field.setSelection(field.length());
+    body.addView(field, new LinearLayout.LayoutParams(-1, 0, 1));
+    AppKeyboard keys = AppKeyboard.forText(this, field, multiline, 4000);
+    body.addView(keys, new LinearLayout.LayoutParams(-1, 0, 3));
+    LinearLayout footer = column();
     option(
-        body,
+        footer,
         submit,
         () -> {
-          String content = value.toString().trim();
-          if (content.isEmpty()) {
+          String value = field.getText().toString();
+          if (!multiline) value = value.replace('\n', ' ').trim();
+          if (value.trim().isEmpty()) {
             toast("Enter some text first");
             return;
           }
           if (dialog != null) dialog.dismiss();
-          done.accept(content);
+          done.accept(value);
         });
-    Dialog input = showDialog(title, body);
+    Dialog input = showPanel(title, body, footer);
     input.setOnKeyListener(
         (d, key, event) -> {
           if (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_BUTTON_B) {
             if (event.getAction() == KeyEvent.ACTION_UP) input.dismiss();
             return true;
           }
-          if (event.getAction() != KeyEvent.ACTION_DOWN)
-            return key == KeyEvent.KEYCODE_BUTTON_A
-                || key == KeyEvent.KEYCODE_BUTTON_Y
-                || key == KeyEvent.KEYCODE_BUTTON_L1;
           if (key == KeyEvent.KEYCODE_BUTTON_A) {
-            View f = input.getCurrentFocus();
-            if (f != null) f.performClick();
+            if (event.getAction() == KeyEvent.ACTION_DOWN && input.getCurrentFocus() != null)
+              input.getCurrentFocus().performClick();
             return true;
           }
-          if (key == KeyEvent.KEYCODE_BUTTON_Y || key == KeyEvent.KEYCODE_SPACE) {
-            if (value.length() < 4000) value.append(' ');
-            field.setText(value.toString() + "▏");
-            return true;
-          }
-          if (key == KeyEvent.KEYCODE_BUTTON_L1 || key == KeyEvent.KEYCODE_DEL) {
-            if (value.length() > 0) value.deleteCharAt(value.length() - 1);
-            field.setText(value.toString() + "▏");
-            return true;
-          }
-          int unicode = event.getUnicodeChar();
-          if (unicode >= 32 && unicode != 127 && value.length() < 4000) {
-            value.appendCodePoint(unicode);
-            field.setText(value.toString() + "▏");
-            return true;
-          }
-          return false;
+          return keys.handle(event);
         });
+    keys.post(() -> keys.requestFocus(View.FOCUS_FORWARD));
   }
 
   public boolean handleKey(KeyEvent event) {
+    if (app.mode.equals("editing") && dialog == null) return app.editor.handle(event);
+    if (app.mode.equals("comic") && dialog == null) return app.comics.handle(event);
     int key = event.getKeyCode();
     if (dialog != null && dialog.isShowing()) {
       // Gamepad events may be routed to the upper activity; deliver to the lower dialog.
@@ -1973,7 +2077,7 @@ public final class ReaderUi {
       if (paper != null) paper.requestFocus();
       return;
     }
-    if (app.mode.equals("reading")) {
+    if (app.mode.equals("reading") || app.mode.equals("editing") || app.mode.equals("comic")) {
       app.library();
       return;
     }

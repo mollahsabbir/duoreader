@@ -194,7 +194,8 @@ public final class LibraryTests extends Instrumentation {
           "A publisher description with useful book details that is long enough to serve as the"
               + " preferred preview.");
       book(new File(fixture, "Opening.epub"), "");
-      new FileOutputStream(new File(fixture, "ignore.txt")).close();
+      new File(fixture, "ignore.txt").delete();
+      new FileOutputStream(new File(fixture, "ignore.pdf")).close();
       ui(() -> app.setRoot(Uri.fromFile(fixture).toString()));
       until(() -> !app.loadingFolder && app.entries.size() == 4, "fixture library");
       check(

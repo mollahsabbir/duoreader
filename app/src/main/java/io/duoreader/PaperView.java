@@ -21,6 +21,7 @@ public final class PaperView extends TextView {
   float left, bodyY, contentHeight;
   Bitmap oldPage, newPage;
   private final PageTurnBuffers turnBuffers = new PageTurnBuffers(this);
+  private final PageCurlRenderer curl = new PageCurlRenderer();
   private ReaderApp.Page noteHitPage;
   float turn = 1f;
   int direction = 1;
@@ -116,10 +117,16 @@ public final class PaperView extends TextView {
         setText(page == null ? "" : page.text, BufferType.SPANNABLE);
       }
       setTypeface(app.typeface());
-      setTextSize(TypedValue.COMPLEX_UNIT_PX, app.textPaint().getTextSize());
+      setTextSize(TypedValue.COMPLEX_UNIT_PX, app.textPaint(true).getTextSize());
       setTextColor(app.ink());
       setHighlightColor(0x668ba6cf);
       setLineSpacing(0, app.spacing);
+      setGravity(Gravity.TOP | (app.alignment == 2 ? Gravity.END : Gravity.START));
+      setTextAlignment(app.alignment == 2 ? TEXT_ALIGNMENT_VIEW_END : TEXT_ALIGNMENT_VIEW_START);
+      setJustificationMode(
+          app.alignment == 1
+              ? Layout.JUSTIFICATION_MODE_INTER_WORD
+              : Layout.JUSTIFICATION_MODE_NONE);
     }
     invalidate();
   }
@@ -149,111 +156,7 @@ public final class PaperView extends TextView {
       }
       return;
     }
-    if (turn <= 0) {
-      c.drawBitmap(oldPage, 0, 0, null);
-      return;
-    }
-    c.drawBitmap(newPage, 0, 0, null);
-    if (turn >= 1) return;
-    float w = getWidth(),
-        h = getHeight(),
-        edge = w * (1 - turn),
-        fold = foldWidth(turn),
-        slope = (float) Math.tan(curlTilt * Math.sin(Math.PI * turn));
-    float top = edge - h * curlOriginY * slope, bottom = edge + h * (1 - curlOriginY) * slope;
-    Path front = new Path();
-    front.moveTo(0, 0);
-    front.lineTo(top, 0);
-    front.lineTo(bottom, h);
-    front.lineTo(0, h);
-    front.close();
-    orientPath(front, w);
-    c.save();
-    c.clipPath(front);
-    c.drawBitmap(oldPage, 0, 0, null);
-    c.restore();
-    Path shadow = new Path();
-    shadow.moveTo(top + fold * .70f, 0);
-    shadow.quadTo(edge + fold * 1.1f, h * .5f, bottom + fold * .70f, h);
-    shadow.lineTo(bottom + fold + dp(22), h);
-    shadow.quadTo(edge + fold + dp(35), h * .5f, top + fold + dp(22), 0);
-    shadow.close();
-    orientPath(shadow, w);
-    float x = direction > 0 ? edge + fold : w - edge - fold;
-    paint.setAlpha(255);
-    paint.setStyle(Paint.Style.FILL);
-    paint.setShader(
-        new LinearGradient(
-            x - direction * dp(12),
-            0,
-            x + direction * dp(30),
-            0,
-            0x55000000,
-            Color.TRANSPARENT,
-            Shader.TileMode.CLAMP));
-    c.drawPath(shadow, paint);
-    paint.setShader(null);
-    Path back = new Path();
-    back.moveTo(top, 0);
-    back.lineTo(top + fold * .72f, 0);
-    back.quadTo(edge + fold * 1.12f, h * .5f, bottom + fold * .72f, h);
-    back.lineTo(bottom, h);
-    back.close();
-    orientPath(back, w);
-    c.save();
-    c.clipPath(back);
-    paint.setColor(app.pageColor());
-    c.drawPath(back, paint);
-    float m = direction > 0 ? slope : -slope,
-        nx = 1 / (float) Math.sqrt(1 + m * m),
-        ny = -m * nx,
-        px = direction > 0 ? edge : w - edge,
-        py = h * curlOriginY,
-        d = nx * px + ny * py;
-    Matrix reflection = new Matrix();
-    reflection.setValues(
-        new float[] {
-          1 - 2 * nx * nx,
-          -2 * nx * ny,
-          2 * d * nx,
-          -2 * nx * ny,
-          1 - 2 * ny * ny,
-          2 * d * ny,
-          0,
-          0,
-          1
-        });
-    paint.setAlpha(38);
-    c.drawBitmap(oldPage, reflection, paint);
-    paint.setAlpha(255);
-    x = direction > 0 ? edge : w - edge;
-    paint.setShader(
-        new LinearGradient(
-            x,
-            0,
-            x + direction * Math.max(1, fold),
-            0,
-            new int[] {0x66000000, 0x12ffffff, 0x55ffffff, 0x33000000},
-            new float[] {0, .18f, .65f, 1},
-            Shader.TileMode.CLAMP));
-    c.drawPath(back, paint);
-    paint.setShader(null);
-    c.restore();
-  }
-
-  public float foldWidth(float progress) {
-    return Math.max(
-        0,
-        Math.min(
-            getWidth() * progress * .9f, getWidth() * .36f * (float) Math.sin(Math.PI * progress)));
-  }
-
-  void orientPath(Path path, float width) {
-    if (direction < 0) {
-      Matrix mirror = new Matrix();
-      mirror.setValues(new float[] {-1, 0, width, 0, 1, 0, 0, 0, 1});
-      path.transform(mirror);
-    }
+    curl.draw(c, oldPage, newPage, turn, direction, curlOriginY, curlTilt, app.pageColor());
   }
 
   private void drawPage(Canvas c) {
@@ -343,18 +246,25 @@ public final class PaperView extends TextView {
       org.json.JSONObject mark = app.marks.optJSONObject(i);
       if (mark == null
           || mark.optInt("chapter") != page.start.chapter
-          || mark.optString("note").isEmpty()
+          || (mark.optString("note").isEmpty() && !mark.optString("kind").equals("note"))
           || mark.optInt("end") <= page.start.offset
           || mark.optInt("start") >= page.start.offset + page.text.length()) continue;
       int offset = Math.max(0, mark.optInt("start") - page.start.offset),
           line = page.layout.getLineForOffset(Math.min(offset, page.text.length()));
-      float y = bodyY + page.layout.getLineTop(line) + dp(3), x = getWidth() - dp(19);
+      float size = Math.max(dp(12), Math.min(dp(22), left - dp(3)));
+      float y = bodyY + page.layout.getLineTop(line), x = getWidth() - size - dp(1);
+      int accent = app.libraryTheme().accent;
+      paint.setColor(accent);
+      paint.setStyle(Paint.Style.FILL);
+      canvas.drawRoundRect(x, y, x + size, y + size, dp(3), dp(3), paint);
       android.graphics.drawable.Drawable icon =
-          ReaderIcons.icon(
-              "note", app.controls == null ? app.ink() : app.controls.accent(), (int) dp(13));
-      icon.setBounds((int) x, (int) y, (int) (x + dp(13)), (int) (y + dp(13)));
+          ReaderIcons.icon("note", app.libraryTheme().onAccent, (int) size);
+      int inset = Math.max(1, (int) (size * .13f));
+      icon.setBounds(
+          (int) x + inset, (int) y + inset, (int) (x + size) - inset, (int) (y + size) - inset);
       icon.draw(canvas);
-      noteHits.add(new NoteHit(new RectF(x - dp(9), y - dp(7), x + dp(20), y + dp(22)), i));
+      noteHits.add(
+          new NoteHit(new RectF(x - dp(4), y - dp(4), x + size + dp(4), y + size + dp(4)), i));
     }
   }
 

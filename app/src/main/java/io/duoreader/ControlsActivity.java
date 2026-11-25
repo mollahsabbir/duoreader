@@ -12,6 +12,8 @@ public final class ControlsActivity extends Activity {
   ReaderApp app;
   public ReaderUi ui;
   private PortraitHost orientationHost;
+  private static final int IMPORT_FILES = 42;
+  private String importRoot, importParent;
   private final Runnable restorePrimary =
       () -> {
         if (!app.pairedTasks.canRestorePanels()
@@ -39,6 +41,11 @@ public final class ControlsActivity extends Activity {
     super.onCreate(state);
     app = (ReaderApp) getApplication();
     app.bottom = this;
+    if (state != null) {
+      importRoot = state.getString("importRoot");
+      importParent = state.getString("importParent");
+      if (importParent != null) app.pairedTasks.beginExternalActivity(this);
+    }
     windowSettings();
     ui = new ReaderUi(this, app);
     app.controls = ui;
@@ -75,7 +82,7 @@ public final class ControlsActivity extends Activity {
 
   @Override
   public boolean dispatchKeyEvent(KeyEvent event) {
-    event = ReaderInput.orient(event, app.dpadBottom);
+    event = ReaderInput.orient(event, app.rotation);
     if (ui != null && ui.handleKey(event)) return true;
     return super.dispatchKeyEvent(event);
   }
@@ -119,7 +126,19 @@ public final class ControlsActivity extends Activity {
   @Override
   protected void onActivityResult(int request, int result, Intent data) {
     super.onActivityResult(request, result, data);
-    if (request == 41) app.pairedTasks.externalActivityReturned();
+    if (request == 41 || request == IMPORT_FILES) app.pairedTasks.externalActivityReturned();
+    if (request == IMPORT_FILES) {
+      String root = importRoot, parent = importParent;
+      importRoot = importParent = null;
+      if (result == RESULT_OK && data != null && root != null && parent != null) {
+        try {
+          app.libraryManager.importFiles(root, parent, LibraryImporter.selected(data));
+        } catch (Exception error) {
+          ui.message("Import", error.getMessage());
+        }
+      }
+      return;
+    }
     if (request == 41 && result == RESULT_OK && data != null) {
       Uri tree = data.getData();
       if (tree == null) return;
@@ -146,6 +165,37 @@ public final class ControlsActivity extends Activity {
     if (app.bottom == this) app.bottom = null;
     if (app.controls == ui) app.controls = null;
     super.onDestroy();
+  }
+
+  @Override
+  public void onSaveInstanceState(Bundle state) {
+    state.putString("importRoot", importRoot);
+    state.putString("importParent", importParent);
+    super.onSaveInstanceState(state);
+  }
+
+  void importFiles() {
+    if (app.busy || app.loadingFolder || app.libraryManager.isWorking()) {
+      ui.toast("Wait for the current operation");
+      return;
+    }
+    if (ui.dialog != null) ui.dialog.dismiss();
+    importRoot = app.root;
+    importParent = app.folder;
+    Intent picker =
+        new Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .setType("*/*")
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+    try {
+      app.pairedTasks.beginExternalActivity(this);
+      startActivityForResult(picker, IMPORT_FILES);
+    } catch (Exception error) {
+      app.pairedTasks.externalActivityReturned();
+      importRoot = importParent = null;
+      ui.message("Import", "Android’s file picker could not open: " + error.getMessage());
+    }
   }
 
   @Override

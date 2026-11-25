@@ -1,0 +1,17 @@
+[
+  {
+    "file": "commonmark-0.33.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/commonmark/commonmark/0.33.0/commonmark-0.33.0.jar",
+    "sha256": "9f92ba931b9318d091f3491291858eb61b518b0b554cb79520cf645d55c3b533"
+  },
+  {
+    "file": "junrar-8.1.2.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/github/junrar/junrar/8.1.2/junrar-8.1.2.jar",
+    "sha256": "6f8204a7fa257af3fb127d0d71176bc5f55d9a572fc576d02d67bf79def19b15"
+  },
+  {
+    "file": "slf4j-api-2.0.17.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar",
+    "sha256": "7b751d952061954d5abfed7181c1f645d336091b679891591d63329c622eb832"
+  }
+]

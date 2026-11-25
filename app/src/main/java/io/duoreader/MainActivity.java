@@ -16,11 +16,24 @@ public final class MainActivity extends Activity {
   FrameLayout pageHost;
   private PortraitHost orientationHost;
   private ReaderUi fallback;
+  private View documentPane;
   private boolean foreground;
   private int attachAttempts;
   private final Runnable attachLower = this::attachBottom;
   private final Runnable refresh =
       () -> {
+        if (pageHost != null) {
+          View next =
+              app.mode.equals("editing")
+                  ? app.editor.primary(this)
+                  : app.mode.equals("comic") ? app.comics.primary(this) : null;
+          if (documentPane != next) {
+            if (documentPane != null) pageHost.removeView(documentPane);
+            documentPane = next;
+            if (next != null) pageHost.addView(next, new FrameLayout.LayoutParams(-1, -1));
+          }
+          paper.setVisibility(next == null ? View.VISIBLE : View.GONE);
+        }
         applyViewport();
         if (paper != null) paper.appearance();
         if (fallback != null) fallback.refresh();
@@ -73,7 +86,7 @@ public final class MainActivity extends Activity {
   public void applyViewport() {
     if (pageHost == null || pageHost.getWidth() == 0) return;
     int width = -1, height = -1;
-    if (app.matchScreens && app.mode.equals("reading")) {
+    if (app.matchScreens && (app.mode.equals("reading") || app.mode.equals("comic"))) {
       DisplayMetrics own = new DisplayMetrics(), other = new DisplayMetrics();
       getDisplay().getRealMetrics(own);
       for (Display d : ((DisplayManager) getSystemService(DISPLAY_SERVICE)).getDisplays())
@@ -82,25 +95,35 @@ public final class MainActivity extends Activity {
           break;
         }
       if (other.widthPixels > 0) {
+        boolean swaps = ReadingOrientation.swapsAxes(app.rotation);
         float referenceWidth =
-            Math.min(other.widthPixels, other.heightPixels) * own.xdpi / Math.max(1, other.xdpi);
+            (swaps
+                    ? Math.min(other.widthPixels, other.heightPixels)
+                    : Math.max(other.widthPixels, other.heightPixels))
+                * own.xdpi
+                / Math.max(1, other.xdpi);
         float referenceHeight =
-            Math.max(other.widthPixels, other.heightPixels) * own.ydpi / Math.max(1, other.ydpi);
+            (swaps
+                    ? Math.max(other.widthPixels, other.heightPixels)
+                    : Math.min(other.widthPixels, other.heightPixels))
+                * own.ydpi
+                / Math.max(1, other.ydpi);
         float fit =
             Math.min(pageHost.getWidth() / referenceWidth, pageHost.getHeight() / referenceHeight);
         width = Math.min(pageHost.getWidth(), Math.round(referenceWidth * fit));
         height = Math.min(pageHost.getHeight(), Math.round(referenceHeight * fit));
       }
     }
-    FrameLayout.LayoutParams p = (FrameLayout.LayoutParams) paper.getLayoutParams();
+    View content = app.mode.equals("comic") && documentPane != null ? documentPane : paper;
+    FrameLayout.LayoutParams p = (FrameLayout.LayoutParams) content.getLayoutParams();
     if (p.width != width || p.height != height) {
       p.width = width;
       p.height = height;
       p.gravity = Gravity.CENTER;
-      paper.setLayoutParams(p);
+      content.setLayoutParams(p);
     }
     pageHost.setBackgroundColor(
-        !app.mode.equals("reading")
+        !(app.mode.equals("reading") || app.mode.equals("comic"))
             ? app.libraryTheme().shell
             : app.matchScreens ? 0xff111514 : app.pageColor());
   }
@@ -188,12 +211,13 @@ public final class MainActivity extends Activity {
 
   @Override
   public boolean dispatchTouchEvent(android.view.MotionEvent event) {
-    return fallback == null || super.dispatchTouchEvent(event);
+    if (fallback == null && !app.mode.equals("editing")) return true;
+    return super.dispatchTouchEvent(event);
   }
 
   @Override
   public boolean dispatchKeyEvent(KeyEvent event) {
-    event = ReaderInput.orient(event, app.dpadBottom);
+    event = ReaderInput.orient(event, app.rotation);
     if (app.controls != null && app.controls.handleKey(event)) return true;
     if (app.bottom != null) return app.bottom.getWindow().superDispatchKeyEvent(event);
     return super.dispatchKeyEvent(event);

@@ -28,14 +28,16 @@ public final class SpreadTurn {
     try {
       ReaderApp.Page first = app.page(target, app.topWidth, app.topHeight);
       ReaderApp.Page second =
-          app.end(first.next) ? null : app.page(first.next, app.bottomWidth, app.bottomHeight);
+          app.end(first.next)
+              ? null
+              : app.page(first.next, app.bottomWidth, app.bottomHeight, true);
       upper = app.top == null ? null : app.top.paper;
       lower = app.controls == null ? null : app.controls.paper;
       direction = dir;
       active = true;
       interactive = finger;
       int percent = app.progressPercent(target);
-      originY = .5f;
+      originY = finger ? .5f : .92f;
       tilt = 0;
       if (upper != null) upper.prepareTurn(first, percent, app.bookmarkedAt(first.start), dir);
       if (lower != null)
@@ -59,7 +61,8 @@ public final class SpreadTurn {
   }
 
   public void drag(float amount) {
-    if (active && interactive) frame(Math.max(0, Math.min(.5f, amount * .5f)));
+    // The crease travels half as far as the held edge; that edge moves with the finger.
+    if (active && interactive) frame(Math.max(0, Math.min(.5f, amount * .25f)));
   }
 
   public void drag(float amount, float origin, float angle) {
