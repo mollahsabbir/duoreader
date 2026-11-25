@@ -58,6 +58,7 @@ public final class ReaderUi {
   private int iconSet;
   String builtMode = "";
   int builtTheme = -1;
+  boolean builtCompact;
   final float density;
 
   public ReaderUi(Activity a, ReaderApp state) {
@@ -196,6 +197,7 @@ public final class ReaderUi {
   }
 
   public void refresh() {
+    boolean compact = app.mode.equals("library") && !ReadingOrientation.swapsAxes(app.rotation);
     boolean documentChanged = !app.mode.equals("library") && displayedDocument != app.current;
     if (!builtMode.equals(app.mode) || displayedBook != app.book || documentChanged) {
       feedback.dismiss();
@@ -204,7 +206,10 @@ public final class ReaderUi {
     }
     displayedBook = app.book;
     displayedDocument = app.current;
-    if (!builtMode.equals(app.mode) || builtTheme != app.theme || documentChanged) {
+    if (!builtMode.equals(app.mode)
+        || builtTheme != app.theme
+        || documentChanged
+        || builtCompact != compact) {
       feedback.dismiss();
       app.main.removeCallbacks(autoHide);
       root.removeAllViews();
@@ -221,6 +226,7 @@ public final class ReaderUi {
       restoringList = false;
       builtMode = app.mode;
       builtTheme = app.theme;
+      builtCompact = compact;
       root.setBackgroundColor(shell());
       if (app.mode.equals("reading") && app.book != null) buildReader();
       else if (app.mode.equals("editing")) app.editor.buildControls(this);
@@ -270,17 +276,18 @@ public final class ReaderUi {
 
   void buildLibrary() {
     LinearLayout body = column();
-    body.setPadding(dp(15), dp(14), dp(15), dp(8));
+    body.setPadding(dp(15), dp(builtCompact ? 8 : 14), dp(15), dp(builtCompact ? 6 : 8));
     root.addView(body, new FrameLayout.LayoutParams(-1, -1));
     LinearLayout brand = row();
-    TextView title = text("Duo Reader", 23, ink());
+    TextView title = text("Duo Reader", builtCompact ? 20 : 23, ink());
     title.setTypeface(Typeface.create("serif", 0));
-    brand.addView(title, new LinearLayout.LayoutParams(0, dp(45), 1));
+    brand.addView(title, new LinearLayout.LayoutParams(0, dp(builtCompact ? 34 : 45), 1));
     Button options = button("Preferences", this::preferences);
-    brand.addView(options, new LinearLayout.LayoutParams(dp(98), dp(40)));
+    brand.addView(options, new LinearLayout.LayoutParams(dp(98), dp(builtCompact ? 32 : 40)));
     Button close = button("Close", app::close);
     styleAppClose(close);
-    LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(dp(60), dp(40));
+    LinearLayout.LayoutParams cp =
+        new LinearLayout.LayoutParams(dp(60), dp(builtCompact ? 32 : 40));
     cp.setMargins(dp(6), 0, 0, 0);
     brand.addView(close, cp);
     body.addView(brand);
@@ -288,16 +295,16 @@ public final class ReaderUi {
     LinearLayout path = row();
     Button parent = button("‹", () -> app.parent());
     parent.setContentDescription("Parent folder");
-    path.addView(parent, new LinearLayout.LayoutParams(dp(43), dp(40)));
+    path.addView(parent, new LinearLayout.LayoutParams(dp(43), dp(builtCompact ? 32 : 40)));
     pathLabel = text(app.folderLabel(), 14, ink());
     pathLabel.setSingleLine(true);
     pathLabel.setEllipsize(TextUtils.TruncateAt.MIDDLE);
     pathLabel.setPadding(dp(12), 0, dp(6), 0);
-    path.addView(pathLabel, new LinearLayout.LayoutParams(0, dp(40), 1));
+    path.addView(pathLabel, new LinearLayout.LayoutParams(0, dp(builtCompact ? 32 : 40), 1));
     pathLabel.setGravity(Gravity.CENTER_VERTICAL);
     Button refresh = button("↻", () -> app.loadFolder(app.folder));
     refresh.setContentDescription("Refresh folder");
-    path.addView(refresh, new LinearLayout.LayoutParams(dp(43), dp(40)));
+    path.addView(refresh, new LinearLayout.LayoutParams(dp(43), dp(builtCompact ? 32 : 40)));
     body.addView(path);
     resumeButton =
         button(
@@ -316,14 +323,14 @@ public final class ReaderUi {
                 app.open(e);
               }
             });
-    LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, dp(43));
-    rp.setMargins(0, dp(10), 0, dp(3));
+    LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, dp(builtCompact ? 36 : 43));
+    rp.setMargins(0, dp(builtCompact ? 3 : 10), 0, dp(3));
     body.addView(resumeButton, rp);
     LinearLayout head = row();
     TextView heading = text("BOOKS & COLLECTIONS", 10, muted());
     heading.setLetterSpacing(.09f);
-    heading.setPadding(dp(3), dp(10), 0, dp(8));
-    head.addView(heading, new LinearLayout.LayoutParams(0, dp(44), 1));
+    heading.setPadding(dp(3), dp(builtCompact ? 4 : 10), 0, dp(builtCompact ? 4 : 8));
+    head.addView(heading, new LinearLayout.LayoutParams(0, dp(builtCompact ? 38 : 44), 1));
     collectionButton = button("Icon", this::collectionIcon);
     collectionButton.setContentDescription("Change collection icon");
     head.addView(collectionButton, new LinearLayout.LayoutParams(dp(65), dp(36)));
@@ -388,12 +395,17 @@ public final class ReaderUi {
           public void onNothingSelected(AdapterView<?> p) {}
         });
     libraryStatus = text(app.status, 11, muted());
-    libraryStatus.setPadding(dp(3), dp(9), dp(3), dp(5));
+    libraryStatus.setPadding(dp(3), dp(builtCompact ? 3 : 9), dp(3), dp(builtCompact ? 3 : 5));
+    if (builtCompact) {
+      libraryStatus.setMaxLines(1);
+      libraryStatus.setEllipsize(TextUtils.TruncateAt.END);
+    }
     body.addView(libraryStatus);
     TextView help = text("↑↓ Browse    → Open    ← Parent", 11, ink());
     help.setGravity(Gravity.CENTER);
     help.setPadding(0, dp(5), 0, dp(3));
     body.addView(help);
+    if (builtCompact) help.setVisibility(View.GONE);
     LinearLayout keys = row();
     for (String key : new String[] {"A", "B", "X", "Y"}) {
       LinearLayout hint = row();
@@ -414,6 +426,7 @@ public final class ReaderUi {
       keys.addView(hint, new LinearLayout.LayoutParams(0, dp(28), 1));
     }
     body.addView(keys);
+    if (builtCompact) keys.setVisibility(View.GONE);
     if (!app.entries.isEmpty()) {
       list.setSelection(app.selectedIndex());
       list.requestFocusFromTouch();
@@ -422,11 +435,11 @@ public final class ReaderUi {
 
   LinearLayout hardwareStrip(LibraryTheme palette) {
     LinearLayout strip = row();
-    strip.setPadding(dp(2), 0, dp(2), dp(9));
-    TextView label = text(palette.name + "  ·  LOCAL EPUB LIBRARY", 10, palette.muted);
+    strip.setPadding(dp(2), 0, dp(2), dp(builtCompact ? 0 : 9));
+    TextView label = text(palette.name + "  ·  LOCAL LIBRARY", 10, palette.muted);
     label.setSingleLine(true);
     label.setEllipsize(TextUtils.TruncateAt.END);
-    strip.addView(label, new LinearLayout.LayoutParams(0, dp(27), 1));
+    strip.addView(label, new LinearLayout.LayoutParams(0, dp(builtCompact ? 14 : 27), 1));
     for (int color : new int[] {palette.a, palette.b, palette.x, palette.y, palette.stick}) {
       View dot = new View(activity);
       GradientDrawable bg = new GradientDrawable();

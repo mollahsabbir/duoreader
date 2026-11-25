@@ -6,6 +6,7 @@ import android.view.*;
 public final class DisplayTests extends FeatureTest {
   void exercise() throws Exception {
     int original = app.rotation;
+    String originalMode = app.mode;
     boolean separate = app.allowDifferentFontSizes;
     int upperSize = app.upperFontSize, lowerSize = app.lowerFontSize, baseSize = app.fontSize;
     try {
@@ -59,6 +60,7 @@ public final class DisplayTests extends FeatureTest {
       check(
           "Common size controls still adjust separate fonts when the base is at its limit",
           app.fontSize == 32 && app.upperFontSize == 26 && app.lowerFontSize == 15);
+      ui(() -> app.library());
       for (int angle : new int[] {0, 90, 180, 270}) {
         ui(
             () -> {
@@ -79,6 +81,10 @@ public final class DisplayTests extends FeatureTest {
         check(
             "Content dimensions follow rotation " + angle,
             swapped == (app.controls.root.getHeight() > app.controls.root.getWidth()));
+        if (!swapped)
+          check(
+              "Sideways library leaves room for its book list at " + angle,
+              app.controls.list.getHeight() >= app.controls.dp(140));
         int[] keys = {
           KeyEvent.KEYCODE_DPAD_UP,
           KeyEvent.KEYCODE_DPAD_RIGHT,
@@ -105,6 +111,7 @@ public final class DisplayTests extends FeatureTest {
             app.fontSize = baseSize;
             app.lowerFontSize = lowerSize;
             app.appearance();
+            if (!originalMode.equals("library")) app.resume();
           });
     }
   }
