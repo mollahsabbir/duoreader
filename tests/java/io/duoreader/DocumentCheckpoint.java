@@ -31,7 +31,24 @@ public final class DocumentCheckpoint extends FeatureTest {
 
   void exercise() throws Exception {
     String stage = arguments.getString("stage", "");
-    if (stage.equals("prepareText")) {
+    if (stage.equals("prepareEpub")) {
+      File fixture = TestBooks.create(app);
+      ui(
+          () ->
+              app.open(
+                  new Library.Entry(Uri.fromFile(fixture).toString(), fixture.getName(), false)));
+      until(
+          () -> app.mode.equals("reading") && !app.busy && app.topPage != null, "EPUB checkpoint");
+      ui(
+          () -> {
+            app.jump(new ReaderApp.Location(1, 0));
+            app.save();
+          });
+      check(
+          "EPUB checkpoint is durable",
+          app.lastSaveSuccessful && app.prefs.getBoolean("reading", false));
+      return;
+    } else if (stage.equals("prepareText")) {
       File file = new File(app.getCacheDir(), "checkpoint.txt");
       TextDocument.writeAtomic(file, ORIGINAL.getBytes(StandardCharsets.UTF_8));
       String uri = Uri.fromFile(file).toString();
