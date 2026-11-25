@@ -31,6 +31,16 @@ public final class EditorTests extends FeatureTest {
     return null;
   }
 
+  AppKeyboard keyboard(View root) {
+    if (root instanceof AppKeyboard) return (AppKeyboard) root;
+    if (root instanceof ViewGroup)
+      for (int i = 0; i < ((ViewGroup) root).getChildCount(); i++) {
+        AppKeyboard found = keyboard(((ViewGroup) root).getChildAt(i));
+        if (found != null) return found;
+      }
+    return null;
+  }
+
   void click(String title) {
     ui(
         () -> {
@@ -194,6 +204,13 @@ public final class EditorTests extends FeatureTest {
         check(
             "Editor keyboard fits rotation " + angle,
             find(app.controls.root, "Enter").getHeight() >= app.controls.dp(20));
+        AppKeyboard keys = keyboard(app.controls.root);
+        check(
+            "Editor leaves space above a compact keyboard at rotation " + angle,
+            keys.getHeight() < app.controls.root.getHeight() * .6f);
+        check(
+            "Editor keyboard stays at the bottom at rotation " + angle,
+            Math.abs(keys.getBottom() - app.controls.root.getHeight()) <= app.controls.dp(8));
       }
     } finally {
       ui(

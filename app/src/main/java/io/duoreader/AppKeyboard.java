@@ -15,6 +15,7 @@ public final class AppKeyboard extends LinearLayout {
 
   private final Target target;
   private final boolean multiline;
+  private final int preferredHeight;
   private boolean caps;
   private int symbolSet;
   private final ArrayList<Button> letters = new ArrayList<>(), punctuation = new ArrayList<>();
@@ -23,6 +24,7 @@ public final class AppKeyboard extends LinearLayout {
     super(ui.activity);
     this.target = target;
     this.multiline = multiline;
+    preferredHeight = ui.dp(252);
     setOrientation(VERTICAL);
     for (String chars : new String[] {"1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm.,?"}) {
       LinearLayout row = ui.row();
@@ -72,6 +74,17 @@ public final class AppKeyboard extends LinearLayout {
     delete.setContentDescription("Backspace");
     addKey(ui, actions, delete);
     addView(actions, new LinearLayout.LayoutParams(-1, 0, 1));
+  }
+
+  @Override
+  protected void onMeasure(int widthSpec, int heightSpec) {
+    int mode = MeasureSpec.getMode(heightSpec);
+    if (mode != MeasureSpec.EXACTLY) {
+      int height = preferredHeight;
+      if (mode == MeasureSpec.AT_MOST) height = Math.min(height, MeasureSpec.getSize(heightSpec));
+      heightSpec = MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY);
+    }
+    super.onMeasure(widthSpec, heightSpec);
   }
 
   private void addKey(ReaderUi ui, LinearLayout row, Button key) {

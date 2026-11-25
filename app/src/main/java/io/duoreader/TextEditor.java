@@ -262,6 +262,7 @@ public final class TextEditor {
     statusView = ui.text("", 12, ui.muted());
     body.addView(statusView);
     updateStatus();
+    body.addView(new View(ui.activity), new LinearLayout.LayoutParams(-1, 0, 1));
     LinearLayout arrows = ui.row();
     for (int direction : new int[] {-2, -1, 1, 2}) {
       String label = direction == -2 ? "↑" : direction == -1 ? "←" : direction == 1 ? "→" : "↓";
@@ -294,7 +295,7 @@ public final class TextEditor {
               }
             },
             true);
-    body.addView(keyboard, new LinearLayout.LayoutParams(-1, 0, 1));
+    body.addView(keyboard, new LinearLayout.LayoutParams(-1, -2));
     ui.root.addView(body, new FrameLayout.LayoutParams(-1, -1));
     keyboard.post(() -> keyboard.requestFocus(View.FOCUS_FORWARD));
   }
