@@ -70,8 +70,6 @@ public final class ReaderUi {
   }
 
   public int accent() {
-    if (app.mode.equals("reading"))
-      return app.paper == 2 ? 0xffb7c9c5 : app.paper == 1 ? 0xff8b694a : 0xff426b82;
     return app.libraryTheme().accent;
   }
 
@@ -80,23 +78,19 @@ public final class ReaderUi {
   }
 
   int surface() {
-    return app.mode.equals("reading") ? app.pageColor() : app.libraryTheme().surface;
+    return app.libraryTheme().surface;
   }
 
   int ink() {
-    return app.mode.equals("reading") ? app.ink() : app.libraryTheme().ink;
+    return app.libraryTheme().ink;
   }
 
   int muted() {
-    return app.mode.equals("reading")
-        ? (app.paper == 2 ? 0xff9a9e94 : 0xff74796f)
-        : app.libraryTheme().muted;
+    return app.libraryTheme().muted;
   }
 
   int line() {
-    return app.mode.equals("reading")
-        ? (app.paper == 2 ? 0xff46504c : 0xffcdd0c6)
-        : app.libraryTheme().line;
+    return app.libraryTheme().line;
   }
 
   GradientDrawable shape(int fill, int stroke, int width) {
@@ -112,15 +106,16 @@ public final class ReaderUi {
   }
 
   StateListDrawable controlBackground() {
-    boolean reading = app.mode.equals("reading");
-    int fill = reading ? translucent(app.pageColor(), 155) : surface(),
-        active = reading ? fill : app.libraryTheme().soft;
+    return controlBackground(surface(), app.libraryTheme().soft, line());
+  }
+
+  StateListDrawable controlBackground(int fill, int active, int border) {
     StateListDrawable d = new StateListDrawable();
     d.addState(new int[] {android.R.attr.state_pressed}, shape(active, accent(), 2));
     d.addState(new int[] {android.R.attr.state_focused}, shape(active, accent(), 2));
     d.addState(new int[] {android.R.attr.state_activated}, shape(active, accent(), 2));
     d.addState(new int[] {android.R.attr.state_selected}, shape(active, accent(), 2));
-    d.addState(new int[] {}, shape(fill, reading ? translucent(accent(), 100) : line(), 1));
+    d.addState(new int[] {}, shape(fill, border, 1));
     return d;
   }
 
@@ -593,10 +588,12 @@ public final class ReaderUi {
             GradientDrawable.Orientation.TOP_BOTTOM,
             new int[] {translucent(bg, 0), translucent(bg, 75), translucent(bg, 135)});
     controlsOverlay.setBackground(fade);
-    readingStatus.setTextColor(muted());
+    readingStatus.setTextColor(app.paper == 2 ? 0xff9a9e94 : 0xff74796f);
     for (Button b : overlayButtons) {
       b.setTextColor(app.ink());
-      b.setBackground(controlBackground());
+      b.setBackground(
+          controlBackground(
+              translucent(bg, 155), translucent(bg, 210), translucent(accent(), 100)));
     }
     if (appearanceOverlay != null) {
       appearanceOverlay.setBackground(
@@ -688,8 +685,7 @@ public final class ReaderUi {
     d.requestWindowFeature(Window.FEATURE_NO_TITLE);
     LinearLayout layout = column();
     layout.setPadding(dp(16), dp(13), dp(16), dp(12));
-    layout.setBackground(
-        shape(app.mode.equals("reading") ? translucent(app.pageColor(), 242) : shell(), line(), 1));
+    layout.setBackground(shape(shell(), line(), 1));
     TextView heading = text(title, 23, ink());
     heading.setTypeface(Typeface.create("serif", 0));
     heading.setPadding(dp(3), dp(3), dp(3), dp(13));
