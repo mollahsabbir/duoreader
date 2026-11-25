@@ -495,6 +495,10 @@ public final class ReaderUi {
   void buildQuickAppearance() {
     appearanceOverlay = column();
     appearanceOverlay.setPadding(dp(5), dp(5), dp(5), dp(14));
+    LinearLayout navigation = row();
+    navigation.setPadding(0, 0, dp(43), 0);
+    addWeighted(navigation, readerButton("Library", app::library));
+    appearanceOverlay.addView(navigation);
     LinearLayout fonts = row();
     fonts.setPadding(0, 0, dp(43), 0);
     fontQuick = readerButton("", this::fontPicker);
@@ -1012,7 +1016,6 @@ public final class ReaderUi {
           "Select passage with buttons",
           "English dictionary",
           "Keybindings",
-          "Return to library",
           "Button guide",
           "Close app"
         },
@@ -1031,12 +1034,9 @@ public final class ReaderUi {
               keybindings();
               break;
             case 4:
-              app.library();
-              break;
-            case 5:
               guide();
               break;
-            case 6:
+            case 5:
               app.close();
           }
         });

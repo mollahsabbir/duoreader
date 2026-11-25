@@ -27,7 +27,7 @@ no launcher dependency.
    your EPUBs. Subfolders become collections. No books are bundled.
 3. Hold the Duo like a book, D-pad at the bottom. Tap the smaller page to show
    controls; long-press text to highlight, copy, annotate or define it. Tap its
-   upper-right corner to bookmark. **Menu → Library** returns to browsing.
+   upper-right corner to bookmark. **Library** in the top quick menu returns to browsing.
 
 The opposite grip and matching page sizes are available in Preferences.
 
