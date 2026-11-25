@@ -691,6 +691,13 @@ public final class ReaderUi {
   }
 
   Dialog showDialog(String title, View content) {
+    ScrollView scroll = new ScrollView(activity);
+    scroll.setFillViewport(false);
+    scroll.addView(content);
+    return showPanel(title, scroll, null);
+  }
+
+  Dialog showPanel(String title, View content, View footer) {
     feedback.dismiss();
     hideControls();
     app.turns.cancel();
@@ -708,13 +715,13 @@ public final class ReaderUi {
     layout.setPadding(dp(16), dp(13), dp(16), dp(12));
     layout.setBackground(shape(shell(), line(), 1));
     TextView heading = text(title, 23, ink());
+    heading.setMaxLines(1);
+    heading.setEllipsize(TextUtils.TruncateAt.END);
     heading.setTypeface(Typeface.create("serif", 0));
     heading.setPadding(dp(3), dp(3), dp(3), dp(13));
     layout.addView(heading);
-    ScrollView scroll = new ScrollView(activity);
-    scroll.setFillViewport(false);
-    scroll.addView(content);
-    layout.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+    layout.addView(content, new LinearLayout.LayoutParams(-1, 0, 1));
+    if (footer != null) layout.addView(footer, new LinearLayout.LayoutParams(-1, -2));
     Button close = button("Back", d::dismiss);
     LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-1, dp(43));
     bp.setMargins(0, dp(10), 0, 0);
@@ -771,6 +778,8 @@ public final class ReaderUi {
 
   void option(LinearLayout body, String label, Runnable action) {
     Button b = button(label, action);
+    String icon = ReaderIcons.action(label);
+    if (icon != null) actionIcon(b, icon);
     if ("Close app".equals(label)) styleAppClose(b);
     b.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
     b.setMaxLines(3);
@@ -778,6 +787,27 @@ public final class ReaderUi {
     LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
     p.setMargins(dp(2), dp(3), dp(2), dp(3));
     body.addView(b, p);
+  }
+
+  void actionIcon(Button button, String kind) {
+    button.setCompoundDrawables(ReaderIcons.icon(kind, accent(), dp(19)), null, null, null);
+    button.setCompoundDrawablePadding(dp(9));
+  }
+
+  LinearLayout actionGrid(LinearLayout actions) {
+    LinearLayout grid = column();
+    while (actions.getChildCount() > 0) {
+      LinearLayout row = row();
+      for (int i = 0; i < 2 && actions.getChildCount() > 0; i++) {
+        View action = actions.getChildAt(0);
+        actions.removeView(action);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1);
+        params.setMargins(dp(2), dp(2), dp(2), dp(2));
+        row.addView(action, params);
+      }
+      grid.addView(row);
+    }
+    return grid;
   }
 
   public void updateDialogOrientation() {
@@ -1477,6 +1507,7 @@ public final class ReaderUi {
         "Note on this passage",
         "",
         "Save note",
+        true,
         note -> {
           app.addMark("note", start, end, note, quote);
           toast("Note saved");
@@ -1511,32 +1542,34 @@ public final class ReaderUi {
     JSONObject m = app.marks.optJSONObject(index);
     if (m == null) return;
     LinearLayout body = column();
-    TextView quote = text(m.optString("quote"), 16, ink());
-    quote.setTypeface(Typeface.create("serif", 0));
-    quote.setPadding(dp(5), dp(10), dp(5), dp(15));
+    TextView quote = text(m.optString("quote"), 13, muted());
+    quote.setMaxLines(2);
+    quote.setEllipsize(TextUtils.TruncateAt.END);
+    quote.setPadding(dp(5), dp(2), dp(5), dp(8));
     body.addView(quote);
-    if (!m.optString("note").isEmpty()) {
-      TextView note = text(m.optString("note"), 14, ink());
-      note.setPadding(dp(5), dp(5), dp(5), dp(15));
-      body.addView(note);
-    }
+    TextView label = text(m.optString("note").isEmpty() ? "SAVED PASSAGE" : "NOTE", 12, accent());
+    label.setTypeface(Typeface.DEFAULT_BOLD);
+    body.addView(label);
+    NumberedText noteText = new NumberedText(this, false);
+    noteText.setText(m.optString("note").isEmpty() ? m.optString("quote") : m.optString("note"));
+    body.addView(noteText, new LinearLayout.LayoutParams(-1, 0, 1));
+    LinearLayout actions = column();
     option(
-        body,
+        actions,
         "Go to passage",
         () -> {
           dialog.dismiss();
           app.jump(new ReaderApp.Location(m.optInt("chapter"), m.optInt("start")));
         });
     option(
-        body, "English dictionary", () -> dictionary(m.optString("quote").trim().split("\\s+")[0]));
-    option(
-        body,
+        actions,
         "Edit note",
         () ->
             keyboard(
                 "Edit note",
                 m.optString("note"),
                 "Save note",
+                true,
                 note -> {
                   try {
                     m.put("note", note);
@@ -1548,7 +1581,7 @@ public final class ReaderUi {
                 }));
     if (!m.optString("kind").equals("bookmark"))
       option(
-          body,
+          actions,
           "Change highlight color",
           () ->
               chooseHighlightColor(
@@ -1560,7 +1593,7 @@ public final class ReaderUi {
                     }
                   }));
     option(
-        body,
+        actions,
         "Delete",
         () ->
             menu(
@@ -1573,7 +1606,7 @@ public final class ReaderUi {
                     toast("Saved passage deleted");
                   }
                 }));
-    showDialog(m.optString("note").isEmpty() ? "Saved passage" : "Note", body);
+    showPanel(m.optString("note").isEmpty() ? "Saved passage" : "Note", body, actionGrid(actions));
   }
 
   public void preferences() {
@@ -1801,131 +1834,47 @@ public final class ReaderUi {
   }
 
   public void keyboard(String title, String initial, String submit, Consumer<String> done) {
+    keyboard(title, initial, submit, false, done);
+  }
+
+  void keyboard(
+      String title, String initial, String submit, boolean multiline, Consumer<String> done) {
     LinearLayout body = column();
-    StringBuilder value = new StringBuilder(initial);
-    boolean[] caps = {false};
-    TextView field = text(initial, 16, ink());
-    field.setMinHeight(dp(72));
-    field.setGravity(Gravity.TOP | Gravity.START);
-    field.setPadding(dp(10), dp(10), dp(10), dp(10));
-    field.setBackground(shape(surface(), accent(), 1));
-    field.setMaxLines(5);
-    body.addView(field, new LinearLayout.LayoutParams(-1, -2));
-    TextView help = text("D-pad + A to type   ·   Y Space   ·   L1 Delete", 10, muted());
-    help.setPadding(dp(3), dp(9), 0, dp(5));
-    body.addView(help);
-    ArrayList<Button> letters = new ArrayList<>();
-    for (String chars : new String[] {"1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm.,?"}) {
-      LinearLayout keys = row();
-      for (char ch : chars.toCharArray()) {
-        final String letter = String.valueOf(ch);
-        Button key =
-            button(
-                letter,
-                () -> {
-                  if (value.length() < 4000) {
-                    value.append(caps[0] ? letter.toUpperCase(Locale.ROOT) : letter);
-                    field.setText(value.toString() + "▏");
-                  }
-                });
-        key.setPadding(0, 0, 0, 0);
-        letters.add(key);
-        LinearLayout.LayoutParams kp = new LinearLayout.LayoutParams(0, dp(39), 1);
-        kp.setMargins(dp(1), dp(2), dp(1), dp(2));
-        keys.addView(key, kp);
-      }
-      body.addView(keys);
-    }
-    LinearLayout controls = row();
-    addWeighted(
-        controls,
-        button(
-            "Shift",
-            () -> {
-              caps[0] = !caps[0];
-              for (Button b : letters) {
-                String s = b.getText().toString();
-                b.setText(caps[0] ? s.toUpperCase(Locale.ROOT) : s.toLowerCase(Locale.ROOT));
-              }
-            }));
-    addWeighted(
-        controls,
-        button(
-            "Space",
-            () -> {
-              if (value.length() < 4000) value.append(' ');
-              field.setText(value.toString() + "▏");
-            }));
-    addWeighted(
-        controls,
-        button(
-            "⌫",
-            () -> {
-              if (value.length() > 0) value.deleteCharAt(value.length() - 1);
-              field.setText(value.toString() + "▏");
-            }));
-    body.addView(controls);
-    LinearLayout punctuation = row();
-    for (String ch : new String[] {"'", "\"", "!", "-", ":", ";", "(", ")"}) {
-      Button b =
-          button(
-              ch,
-              () -> {
-                if (value.length() < 4000) value.append(ch);
-                field.setText(value.toString() + "▏");
-              });
-      b.setPadding(0, 0, 0, 0);
-      LinearLayout.LayoutParams kp = new LinearLayout.LayoutParams(0, dp(36), 1);
-      kp.setMargins(dp(1), dp(2), dp(1), dp(2));
-      punctuation.addView(b, kp);
-    }
-    body.addView(punctuation);
+    NumberedText field = new NumberedText(this, true);
+    field.setText(initial);
+    field.setSelection(field.length());
+    body.addView(field, new LinearLayout.LayoutParams(-1, 0, 1));
+    AppKeyboard keys = AppKeyboard.forText(this, field, multiline, 4000);
+    body.addView(keys, new LinearLayout.LayoutParams(-1, 0, 3));
+    LinearLayout footer = column();
     option(
-        body,
+        footer,
         submit,
         () -> {
-          String content = value.toString().trim();
-          if (content.isEmpty()) {
+          String value = field.getText().toString();
+          if (!multiline) value = value.replace('\n', ' ').trim();
+          if (value.trim().isEmpty()) {
             toast("Enter some text first");
             return;
           }
           if (dialog != null) dialog.dismiss();
-          done.accept(content);
+          done.accept(value);
         });
-    Dialog input = showDialog(title, body);
+    Dialog input = showPanel(title, body, footer);
     input.setOnKeyListener(
         (d, key, event) -> {
           if (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_BUTTON_B) {
             if (event.getAction() == KeyEvent.ACTION_UP) input.dismiss();
             return true;
           }
-          if (event.getAction() != KeyEvent.ACTION_DOWN)
-            return key == KeyEvent.KEYCODE_BUTTON_A
-                || key == KeyEvent.KEYCODE_BUTTON_Y
-                || key == KeyEvent.KEYCODE_BUTTON_L1;
           if (key == KeyEvent.KEYCODE_BUTTON_A) {
-            View f = input.getCurrentFocus();
-            if (f != null) f.performClick();
+            if (event.getAction() == KeyEvent.ACTION_DOWN && input.getCurrentFocus() != null)
+              input.getCurrentFocus().performClick();
             return true;
           }
-          if (key == KeyEvent.KEYCODE_BUTTON_Y || key == KeyEvent.KEYCODE_SPACE) {
-            if (value.length() < 4000) value.append(' ');
-            field.setText(value.toString() + "▏");
-            return true;
-          }
-          if (key == KeyEvent.KEYCODE_BUTTON_L1 || key == KeyEvent.KEYCODE_DEL) {
-            if (value.length() > 0) value.deleteCharAt(value.length() - 1);
-            field.setText(value.toString() + "▏");
-            return true;
-          }
-          int unicode = event.getUnicodeChar();
-          if (unicode >= 32 && unicode != 127 && value.length() < 4000) {
-            value.appendCodePoint(unicode);
-            field.setText(value.toString() + "▏");
-            return true;
-          }
-          return false;
+          return keys.handle(event);
         });
+    keys.post(() -> keys.requestFocus(View.FOCUS_FORWARD));
   }
 
   public boolean handleKey(KeyEvent event) {

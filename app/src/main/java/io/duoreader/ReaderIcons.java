@@ -8,6 +8,17 @@ import android.text.style.ImageSpan;
 
 /** Small native vector marks, also rendered inside Android's text-selection toolbar. */
 public final class ReaderIcons {
+  public static String action(String label) {
+    if (label.startsWith("Delete")) return "delete";
+    if (label.startsWith("Edit")) return "edit";
+    if (label.startsWith("Copy")) return "copy";
+    if (label.contains("dictionary")) return "dictionary";
+    if (label.contains("note") || label.contains("passage")) return "note";
+    if (label.startsWith("Move")) return "move";
+    if (label.startsWith("Create") || label.startsWith("New")) return "add";
+    return null;
+  }
+
   public static Drawable icon(String kind, int color, int size) {
     Icon d = new Icon(kind, color);
     d.setBounds(0, 0, size, size);
@@ -45,7 +56,29 @@ public final class ReaderIcons {
       paint.setStrokeJoin(Paint.Join.ROUND);
       paint.setStrokeCap(Paint.Cap.ROUND);
       Path p = new Path();
-      if (kind.startsWith("align-")) {
+      if (kind.equals("delete")) {
+        canvas.drawLine(3, 6, 21, 6, paint);
+        canvas.drawRoundRect(6, 6, 18, 22, 1, 1, paint);
+        canvas.drawRect(9, 2, 15, 6, paint);
+        canvas.drawLine(10, 10, 10, 18, paint);
+        canvas.drawLine(14, 10, 14, 18, paint);
+      } else if (kind.equals("edit")) {
+        p.moveTo(4, 16);
+        p.lineTo(16, 4);
+        p.lineTo(21, 9);
+        p.lineTo(9, 21);
+        p.lineTo(3, 22);
+        p.close();
+        canvas.drawPath(p, paint);
+        canvas.drawLine(13, 7, 18, 12, paint);
+      } else if (kind.equals("add")) {
+        canvas.drawLine(12, 4, 12, 20, paint);
+        canvas.drawLine(4, 12, 20, 12, paint);
+      } else if (kind.equals("move")) {
+        canvas.drawLine(3, 12, 21, 12, paint);
+        canvas.drawLine(15, 6, 21, 12, paint);
+        canvas.drawLine(15, 18, 21, 12, paint);
+      } else if (kind.startsWith("align-")) {
         int align = Integer.parseInt(kind.substring(6));
         for (int line = 0; line < 4; line++) {
           float start = align == 2 && line % 2 != 0 ? 8 : 3;

@@ -349,18 +349,25 @@ public final class PaperView extends TextView {
       org.json.JSONObject mark = app.marks.optJSONObject(i);
       if (mark == null
           || mark.optInt("chapter") != page.start.chapter
-          || mark.optString("note").isEmpty()
+          || (mark.optString("note").isEmpty() && !mark.optString("kind").equals("note"))
           || mark.optInt("end") <= page.start.offset
           || mark.optInt("start") >= page.start.offset + page.text.length()) continue;
       int offset = Math.max(0, mark.optInt("start") - page.start.offset),
           line = page.layout.getLineForOffset(Math.min(offset, page.text.length()));
-      float y = bodyY + page.layout.getLineTop(line) + dp(3), x = getWidth() - dp(19);
+      float size = Math.max(dp(12), Math.min(dp(22), left - dp(3)));
+      float y = bodyY + page.layout.getLineTop(line), x = getWidth() - size - dp(1);
+      int accent = app.libraryTheme().accent;
+      paint.setColor(accent);
+      paint.setStyle(Paint.Style.FILL);
+      canvas.drawRoundRect(x, y, x + size, y + size, dp(3), dp(3), paint);
       android.graphics.drawable.Drawable icon =
-          ReaderIcons.icon(
-              "note", app.controls == null ? app.ink() : app.controls.accent(), (int) dp(13));
-      icon.setBounds((int) x, (int) y, (int) (x + dp(13)), (int) (y + dp(13)));
+          ReaderIcons.icon("note", app.libraryTheme().onAccent, (int) size);
+      int inset = Math.max(1, (int) (size * .13f));
+      icon.setBounds(
+          (int) x + inset, (int) y + inset, (int) (x + size) - inset, (int) (y + size) - inset);
       icon.draw(canvas);
-      noteHits.add(new NoteHit(new RectF(x - dp(9), y - dp(7), x + dp(20), y + dp(22)), i));
+      noteHits.add(
+          new NoteHit(new RectF(x - dp(4), y - dp(4), x + size + dp(4), y + size + dp(4)), i));
     }
   }
 
