@@ -59,7 +59,9 @@ public final class Library {
       File[] files = new File(uri.getPath()).listFiles();
       if (files == null) throw new IOException("This folder is unavailable.");
       for (File f : files)
-        if (!f.isHidden() && (f.isDirectory() || DocumentFormat.supported(f.getName()))) {
+        if (!f.isHidden()
+            && !java.nio.file.Files.isSymbolicLink(f.toPath())
+            && (f.isDirectory() || DocumentFormat.supported(f.getName()))) {
           if (cancellation != null) cancellation.throwIfCanceled();
           Entry e = new Entry(Uri.fromFile(f).toString(), f.getName(), f.isDirectory());
           e.modified = f.lastModified();

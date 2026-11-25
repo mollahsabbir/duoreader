@@ -46,6 +46,10 @@ public final class TextEditor {
     return source == null ? cursor : Math.max(0, source.getSelectionStart());
   }
 
+  void awaitWrites() throws Exception {
+    io.submit(() -> {}).get(15, TimeUnit.SECONDS);
+  }
+
   private File draft(String uri) {
     return new File(app.getFilesDir(), "draft-" + Library.id(uri) + ".json");
   }

@@ -53,4 +53,20 @@ public final class BookStateStore {
       android.util.Log.e(
           "DuoReader", "Could not persist reading-data migration; original data is retained");
   }
+
+  public synchronized void relocate(String oldUri, String newUri) {
+    if (oldUri.equals(newUri)) return;
+    String oldKey = key(oldUri), newKey = key(newUri);
+    SharedPreferences.Editor edit = preferences.edit().putString(newKey + "uri", newUri);
+    for (String field : new String[] {"chapter", "offset", "percent"})
+      if (preferences.contains(oldKey + field))
+        edit.putInt(newKey + field, preferences.getInt(oldKey + field, 0));
+    for (String field : new String[] {"marks", "title"})
+      if (preferences.contains(oldKey + field))
+        edit.putString(newKey + field, preferences.getString(oldKey + field, ""));
+    // Retain the previous identity as recovery data if provider or preference writes fail.
+    if (!edit.commit())
+      throw new IllegalStateException(
+          "The file moved, but reading data could not be migrated; its previous data is retained");
+  }
 }

@@ -37,6 +37,7 @@ public final class ReaderApp extends Application {
   public final Paginator paginator = new Paginator(this);
   public final DisplayTypography typography = new DisplayTypography(this);
   public final TextEditor editor = new TextEditor(this);
+  public final LibraryManager libraryManager = new LibraryManager(this);
   public final EnglishDictionary dictionary = new EnglishDictionary(this);
   public final BookSearch searchService = new BookSearch();
   public final ThreadPoolExecutor lookups = TaskExecutors.create("reader-lookups", 1);

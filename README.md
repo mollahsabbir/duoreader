@@ -9,6 +9,8 @@ no launcher dependency.
 ## Features
 
 - Local folders and collections, covers, previews, and per-book reading progress.
+- Create collections/TXT/Markdown files; move or delete library items. Moves keep
+  saved reading data; deletion asks for confirmation.
 - Button-only or smaller-screen touch control; the larger screen ignores touch.
 - Adjustable fonts, size, spacing, margins and brightness; three page colors.
 - Left/justified/right text, density-matched font sizes, and four internal rotations.
@@ -35,6 +37,9 @@ no launcher dependency.
 Rotation and matching page sizes are in Preferences. Separate font sizes require
 **Menu → Advanced display settings → Allow different font sizes**.
 In the editor, **Save** writes the original file; unsaved edits are kept as local drafts.
+Use **+** to create items and **Manage** for the selected item. Existing folders
+may need to be chosen again to grant write access. Providers that cannot move
+whole collections can still move individual files.
 
 | Reading control | Default action |
 | --- | --- |

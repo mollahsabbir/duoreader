@@ -326,6 +326,11 @@ public final class ReaderUi {
     collectionButton = button("Icon", this::collectionIcon);
     collectionButton.setContentDescription("Change collection icon");
     head.addView(collectionButton, new LinearLayout.LayoutParams(dp(65), dp(36)));
+    Button manage = button("Manage", () -> app.libraryManager.manage(app.selected));
+    head.addView(manage, new LinearLayout.LayoutParams(dp(70), dp(36)));
+    Button add = button("+", app.libraryManager::createMenu);
+    add.setContentDescription("Create collection or document");
+    head.addView(add, new LinearLayout.LayoutParams(dp(38), dp(36)));
     body.addView(head);
     list = new ListView(activity);
     list.setDivider(new ColorDrawable(Color.TRANSPARENT));
@@ -1060,7 +1065,9 @@ public final class ReaderUi {
             "Refresh library",
             "Continue reading",
             "Button guide",
-            "Close app"
+            "Close app",
+            "Manage selected item",
+            "Create collection or document"
           },
           i -> {
             switch (i) {
@@ -1084,6 +1091,12 @@ public final class ReaderUi {
                 break;
               case 6:
                 app.close();
+                break;
+              case 7:
+                app.libraryManager.manage(app.selected);
+                break;
+              case 8:
+                app.libraryManager.createMenu();
             }
           });
       return;
