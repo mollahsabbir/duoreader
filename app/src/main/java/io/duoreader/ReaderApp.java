@@ -66,6 +66,7 @@ public final class ReaderApp extends Application {
   public int rotation = 90;
   public boolean allowDifferentFontSizes;
   public int upperFontSize = 18, lowerFontSize = 18;
+  public int alignment;
   public JSONArray marks = new JSONArray();
   public String searchTerm = "";
   public static final String[] THEMES = {"Black", "16Bit", "GC", "Ice Blue", "Clear Purple"};
@@ -124,6 +125,7 @@ public final class ReaderApp extends Application {
     paper = prefs.getInt("paper", 1);
     font = prefs.getInt("font", 0);
     fontSize = prefs.getInt("size", 18);
+    alignment = prefs.getInt("alignment", 0);
     allowDifferentFontSizes = prefs.getBoolean("allowDifferentFontSizes", false);
     upperFontSize = prefs.getInt("upperFontSize", fontSize);
     lowerFontSize = prefs.getInt("lowerFontSize", fontSize);
@@ -823,6 +825,7 @@ public final class ReaderApp extends Application {
         .putInt("paper", paper)
         .putInt("font", font)
         .putInt("size", fontSize)
+        .putInt("alignment", alignment)
         .putBoolean("allowDifferentFontSizes", allowDifferentFontSizes)
         .putInt("upperFontSize", upperFontSize)
         .putInt("lowerFontSize", lowerFontSize)

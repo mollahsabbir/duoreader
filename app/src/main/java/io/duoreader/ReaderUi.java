@@ -45,6 +45,7 @@ public final class ReaderUi {
 
   private final ArrayList<Button> pageColors = new ArrayList<>();
   private final ArrayList<Button> overlayButtons = new ArrayList<>();
+  private final ArrayList<Button> alignmentButtons = new ArrayList<>();
   private final Runnable autoHide = this::hideControls;
   public ListView list;
   BookListAdapter adapter;
@@ -494,6 +495,22 @@ public final class ReaderUi {
     LinearLayout navigation = row();
     navigation.setPadding(0, 0, dp(43), 0);
     addWeighted(navigation, readerButton("Library", app::library));
+    alignmentButtons.clear();
+    String[] alignments = {"Left", "Justify", "Right"};
+    for (int i = 0; i < alignments.length; i++) {
+      final int choice = i;
+      Button align =
+          readerButton(
+              "",
+              () -> {
+                app.alignment = choice;
+                app.appearance();
+                scheduleHide();
+              });
+      align.setContentDescription(alignments[i] + " alignment");
+      alignmentButtons.add(align);
+      addWeighted(navigation, align);
+    }
     appearanceOverlay.addView(navigation);
     LinearLayout fonts = row();
     fonts.setPadding(0, 0, dp(43), 0);
@@ -604,6 +621,12 @@ public final class ReaderUi {
       spacingQuick.setText("Spacing " + String.format(Locale.ROOT, "%.1f", app.spacing));
       marginQuick.setText("Margins " + app.margin);
       matchQuick.setText("Match " + (app.matchScreens ? "On" : "Off"));
+      for (int i = 0; i < alignmentButtons.size(); i++) {
+        Button align = alignmentButtons.get(i);
+        align.setCompoundDrawables(
+            null, ReaderIcons.icon("align-" + i, app.ink(), dp(20)), null, null);
+        align.setSelected(app.alignment == i);
+      }
       for (int i = 0; i < pageColors.size(); i++) {
         Button b = pageColors.get(i);
         b.setTextColor(ReaderApp.PAPER_INKS[i]);

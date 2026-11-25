@@ -45,7 +45,14 @@ public final class ReaderIcons {
       paint.setStrokeJoin(Paint.Join.ROUND);
       paint.setStrokeCap(Paint.Cap.ROUND);
       Path p = new Path();
-      if (kind.startsWith("rotate-")) {
+      if (kind.startsWith("align-")) {
+        int align = Integer.parseInt(kind.substring(6));
+        for (int line = 0; line < 4; line++) {
+          float start = align == 2 && line % 2 != 0 ? 8 : 3;
+          float end = align == 0 && line % 2 != 0 ? 16 : 21;
+          canvas.drawLine(start, 5 + line * 5, end, 5 + line * 5, paint);
+        }
+      } else if (kind.startsWith("rotate-")) {
         canvas.rotate(Integer.parseInt(kind.substring(7)) - 90, 12, 12);
         canvas.drawRoundRect(4, 2, 20, 18, 2, 2, paint);
         canvas.drawLine(12, 3, 12, 17, paint);

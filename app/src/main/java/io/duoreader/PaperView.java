@@ -120,6 +120,12 @@ public final class PaperView extends TextView {
       setTextColor(app.ink());
       setHighlightColor(0x668ba6cf);
       setLineSpacing(0, app.spacing);
+      setGravity(Gravity.TOP | (app.alignment == 2 ? Gravity.END : Gravity.START));
+      setTextAlignment(app.alignment == 2 ? TEXT_ALIGNMENT_VIEW_END : TEXT_ALIGNMENT_VIEW_START);
+      setJustificationMode(
+          app.alignment == 1
+              ? Layout.JUSTIFICATION_MODE_INTER_WORD
+              : Layout.JUSTIFICATION_MODE_NONE);
     }
     invalidate();
   }

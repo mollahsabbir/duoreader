@@ -45,6 +45,8 @@ public final class Paginator {
             + ":"
             + app.fontSize
             + ":"
+            + app.alignment
+            + ":"
             + app.typography.pixels(false)
             + ":"
             + app.typography.pixels(true)
@@ -178,6 +180,12 @@ public final class Paginator {
         .setMaxLines(maxLines)
         .setIncludePad(false)
         .setLineSpacing(0, app.spacing)
+        .setAlignment(
+            app.alignment == 2 ? Layout.Alignment.ALIGN_OPPOSITE : Layout.Alignment.ALIGN_NORMAL)
+        .setJustificationMode(
+            app.alignment == 1
+                ? Layout.JUSTIFICATION_MODE_INTER_WORD
+                : Layout.JUSTIFICATION_MODE_NONE)
         .setBreakStrategy(Layout.BREAK_STRATEGY_HIGH_QUALITY)
         .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NORMAL)
         .build();
