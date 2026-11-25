@@ -21,6 +21,7 @@ public final class PaperView extends TextView {
   float left, bodyY, contentHeight;
   Bitmap oldPage, newPage;
   private final PageTurnBuffers turnBuffers = new PageTurnBuffers(this);
+  private final PageCurlRenderer curl = new PageCurlRenderer();
   private ReaderApp.Page noteHitPage;
   float turn = 1f;
   int direction = 1;
@@ -155,111 +156,7 @@ public final class PaperView extends TextView {
       }
       return;
     }
-    if (turn <= 0) {
-      c.drawBitmap(oldPage, 0, 0, null);
-      return;
-    }
-    c.drawBitmap(newPage, 0, 0, null);
-    if (turn >= 1) return;
-    float w = getWidth(),
-        h = getHeight(),
-        edge = w * (1 - turn),
-        fold = foldWidth(turn),
-        slope = (float) Math.tan(curlTilt * Math.sin(Math.PI * turn));
-    float top = edge - h * curlOriginY * slope, bottom = edge + h * (1 - curlOriginY) * slope;
-    Path front = new Path();
-    front.moveTo(0, 0);
-    front.lineTo(top, 0);
-    front.lineTo(bottom, h);
-    front.lineTo(0, h);
-    front.close();
-    orientPath(front, w);
-    c.save();
-    c.clipPath(front);
-    c.drawBitmap(oldPage, 0, 0, null);
-    c.restore();
-    Path shadow = new Path();
-    shadow.moveTo(top + fold * .70f, 0);
-    shadow.quadTo(edge + fold * 1.1f, h * .5f, bottom + fold * .70f, h);
-    shadow.lineTo(bottom + fold + dp(22), h);
-    shadow.quadTo(edge + fold + dp(35), h * .5f, top + fold + dp(22), 0);
-    shadow.close();
-    orientPath(shadow, w);
-    float x = direction > 0 ? edge + fold : w - edge - fold;
-    paint.setAlpha(255);
-    paint.setStyle(Paint.Style.FILL);
-    paint.setShader(
-        new LinearGradient(
-            x - direction * dp(12),
-            0,
-            x + direction * dp(30),
-            0,
-            0x55000000,
-            Color.TRANSPARENT,
-            Shader.TileMode.CLAMP));
-    c.drawPath(shadow, paint);
-    paint.setShader(null);
-    Path back = new Path();
-    back.moveTo(top, 0);
-    back.lineTo(top + fold * .72f, 0);
-    back.quadTo(edge + fold * 1.12f, h * .5f, bottom + fold * .72f, h);
-    back.lineTo(bottom, h);
-    back.close();
-    orientPath(back, w);
-    c.save();
-    c.clipPath(back);
-    paint.setColor(app.pageColor());
-    c.drawPath(back, paint);
-    float m = direction > 0 ? slope : -slope,
-        nx = 1 / (float) Math.sqrt(1 + m * m),
-        ny = -m * nx,
-        px = direction > 0 ? edge : w - edge,
-        py = h * curlOriginY,
-        d = nx * px + ny * py;
-    Matrix reflection = new Matrix();
-    reflection.setValues(
-        new float[] {
-          1 - 2 * nx * nx,
-          -2 * nx * ny,
-          2 * d * nx,
-          -2 * nx * ny,
-          1 - 2 * ny * ny,
-          2 * d * ny,
-          0,
-          0,
-          1
-        });
-    paint.setAlpha(38);
-    c.drawBitmap(oldPage, reflection, paint);
-    paint.setAlpha(255);
-    x = direction > 0 ? edge : w - edge;
-    paint.setShader(
-        new LinearGradient(
-            x,
-            0,
-            x + direction * Math.max(1, fold),
-            0,
-            new int[] {0x66000000, 0x12ffffff, 0x55ffffff, 0x33000000},
-            new float[] {0, .18f, .65f, 1},
-            Shader.TileMode.CLAMP));
-    c.drawPath(back, paint);
-    paint.setShader(null);
-    c.restore();
-  }
-
-  public float foldWidth(float progress) {
-    return Math.max(
-        0,
-        Math.min(
-            getWidth() * progress * .9f, getWidth() * .36f * (float) Math.sin(Math.PI * progress)));
-  }
-
-  void orientPath(Path path, float width) {
-    if (direction < 0) {
-      Matrix mirror = new Matrix();
-      mirror.setValues(new float[] {-1, 0, width, 0, 1, 0, 0, 0, 1});
-      path.transform(mirror);
-    }
+    curl.draw(c, oldPage, newPage, turn, direction, curlOriginY, curlTilt, app.pageColor());
   }
 
   private void drawPage(Canvas c) {

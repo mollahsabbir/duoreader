@@ -47,7 +47,7 @@ $suites = @(
     @('DisplayTests','DisplayTests.json'), @('AlignmentTests','AlignmentTests.json'),
     @('NoteTests','NoteTests.json'), @('EditorTests','EditorTests.json'),
     @('StorageTests','StorageTests.json'), @('LibraryManagementTests','LibraryManagementTests.json'),
-    @('ComicTests','ComicTests.json'), @('ImportTests','ImportTests.json')
+    @('ComicTests','ComicTests.json'), @('ImportTests','ImportTests.json'), @('CurlTests','CurlTests.json')
 )
 if ($Suite) {
     $known = @($suites | ForEach-Object { $_[0] })

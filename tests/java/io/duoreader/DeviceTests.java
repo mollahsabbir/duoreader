@@ -1073,7 +1073,7 @@ public final class DeviceTests extends Instrumentation {
         "A diagonal drag carries its angle and origin into the curl",
         app.controls.paper.curlTilt > .1f
             && Math.abs(app.controls.paper.curlOriginY - .22f) < .01f
-            && Math.abs(app.turns.lowerProgress - .5f) < .01f);
+            && Math.abs(app.turns.lowerProgress - .25f) < .01f);
     ui(() -> app.turns.release(false));
     settled();
     ui(

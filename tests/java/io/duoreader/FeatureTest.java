@@ -54,7 +54,15 @@ abstract class FeatureTest extends Instrumentation {
                   .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
               ActivityOptions.makeBasic().setLaunchDisplayId(0).toBundle());
       until(
-          () -> app.ready && app.top != null && app.bottom != null && !app.busy && !app.restoring,
+          () ->
+              app.ready
+                  && app.top != null
+                  && app.bottom != null
+                  && !app.busy
+                  && !app.restoring
+                  && app.top.isForeground()
+                  && app.bottom.getWindow().getDecorView().getWindowVisibility()
+                      == android.view.View.VISIBLE,
           "both displays");
       exercise();
     } catch (Throwable error) {
