@@ -627,7 +627,7 @@ public final class ReaderUi {
               new int[] {translucent(bg, 150), translucent(bg, 90), translucent(bg, 0)}));
       fontQuick.setText(new String[] {"Serif", "Sans", "Mono"}[app.font]);
       fontQuick.setTypeface(app.typeface());
-      sizeQuick.setText(Integer.toString(app.fontSize));
+      sizeQuick.setText(fontSizeLabel());
       spacingQuick.setText("Spacing " + String.format(Locale.ROOT, "%.1f", app.spacing));
       marginQuick.setText("Margins " + app.margin);
       matchQuick.setText("Match " + (app.matchScreens ? "On" : "Off"));
@@ -1232,15 +1232,25 @@ public final class ReaderUi {
 
   void fontStep(int step) {
     int size = Math.max(12, Math.min(32, app.fontSize + step));
-    if (size != app.fontSize) {
+    int upper = Math.max(12, Math.min(32, app.upperFontSize + step));
+    int lower = Math.max(12, Math.min(32, app.lowerFontSize + step));
+    if (size != app.fontSize
+        || app.allowDifferentFontSizes
+            && (upper != app.upperFontSize || lower != app.lowerFontSize)) {
       app.fontSize = size;
       if (app.allowDifferentFontSizes) {
-        app.upperFontSize = Math.max(12, Math.min(32, app.upperFontSize + step));
-        app.lowerFontSize = Math.max(12, Math.min(32, app.lowerFontSize + step));
+        app.upperFontSize = upper;
+        app.lowerFontSize = lower;
       }
       app.appearance();
     }
-    toast("Font size " + app.fontSize);
+    toast("Font size " + fontSizeLabel());
+  }
+
+  private String fontSizeLabel() {
+    return app.allowDifferentFontSizes
+        ? app.upperFontSize + " / " + app.lowerFontSize
+        : Integer.toString(app.fontSize);
   }
 
   void readingAction(ReadingBindings.Action action) {

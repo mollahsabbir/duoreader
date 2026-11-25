@@ -7,7 +7,7 @@ public final class DisplayTests extends FeatureTest {
   void exercise() throws Exception {
     int original = app.rotation;
     boolean separate = app.allowDifferentFontSizes;
-    int upperSize = app.upperFontSize, lowerSize = app.lowerFontSize;
+    int upperSize = app.upperFontSize, lowerSize = app.lowerFontSize, baseSize = app.fontSize;
     try {
       ui(
           () -> {
@@ -51,6 +51,14 @@ public final class DisplayTests extends FeatureTest {
           app.prefs.getBoolean("allowDifferentFontSizes", false)
               && app.prefs.getInt("upperFontSize", 0) == 25
               && app.prefs.getInt("lowerFontSize", 0) == 14);
+      ui(
+          () -> {
+            app.fontSize = 32;
+            app.controls.fontStep(1);
+          });
+      check(
+          "Common size controls still adjust separate fonts when the base is at its limit",
+          app.fontSize == 32 && app.upperFontSize == 26 && app.lowerFontSize == 15);
       for (int angle : new int[] {0, 90, 180, 270}) {
         ui(
             () -> {
@@ -94,6 +102,7 @@ public final class DisplayTests extends FeatureTest {
             app.rotation = original;
             app.allowDifferentFontSizes = separate;
             app.upperFontSize = upperSize;
+            app.fontSize = baseSize;
             app.lowerFontSize = lowerSize;
             app.appearance();
           });
